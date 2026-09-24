@@ -10,7 +10,10 @@ import logging
 
 from igraph import Graph
 from sklearn.preprocessing import normalize
-from sklearn.cluster._kmeans import euclidean_distances, stable_cumsum, KMeans, check_random_state, row_norms, MiniBatchKMeans
+from sklearn.cluster import KMeans, MiniBatchKMeans
+from sklearn.metrics.pairwise import euclidean_distances, row_norms
+from sklearn.utils import check_random_state
+from sklearn.utils.extmath import stable_cumsum
 
 from utils import get_length, calculateN50, save_result
 from scripts.gen_bins_from_tsv import gen_bins as gen_bins_from_tsv
@@ -100,7 +103,7 @@ def seed_kmeans_full(logger, contig_file: str, namelist: List[str], out_path: st
     output_temp = out_path + '_k_' + str(
         bin_number) + '_result.tsv'
     if not (os.path.exists(output_temp)):
-        km = KMeans(n_clusters=bin_number, n_jobs=-1, random_state=7, algorithm="full",
+        km = KMeans(n_clusters=bin_number, random_state=7, algorithm="full",
                     init=functools.partial(partial_seed_init, seed_idx=seed_bacar_marker_idx))
         km.fit(X_mat, sample_weight=length_weight)
         idx = km.labels_
