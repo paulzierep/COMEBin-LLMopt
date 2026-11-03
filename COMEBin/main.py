@@ -10,6 +10,17 @@ from comebin_version import __version__ as ver
 from train_CLmodel import train_CLmodel
 from cluster import cluster
 from utils import DEFAULT_HMM_EVALUE, DEFAULT_RANDOM_SEED, configure_reproducibility
+from utils import NoMarkerSeedsError
+
+
+def write_empty_result(logger, output_path, reason):
+    """Publish an empty but valid COMEBin result when no bins can be formed."""
+    output_path = Path(output_path)
+    (output_path / 'comebin_res_bins').mkdir(parents=True, exist_ok=True)
+    (output_path / 'comebin_res.tsv').write_text('')
+    (output_path / 'NO_BINS.txt').write_text(f'COMEBin produced no bins: {reason}\n')
+    logger.warning("No bins reported: %s Wrote empty %s and %s.",
+                   reason, output_path / 'comebin_res.tsv', output_path / 'comebin_res_bins')
 
 
 def arguments():
@@ -295,10 +306,14 @@ def main():
         from utils import gen_seed
 
         num_threads = args.num_threads
-        _ = gen_seed(logger, args.contig_file, num_threads, args.contig_len, marker_name="bacar_marker",
-                     quarter="2quarter", hmm_evalue=args.hmm_evalue)
-
-        cluster(logger, args)
+        try:
+            _ = gen_seed(logger, args.contig_file, num_threads, args.contig_len, marker_name="bacar_marker",
+                         quarter="2quarter", hmm_evalue=args.hmm_evalue)
+        except NoMarkerSeedsError as error:
+            # Leiden result selection relies on single-copy marker seeds; without them no bin is trustworthy.
+            write_empty_result(logger, args.output_path, str(error))
+        else:
+            cluster(logger, args)
 
 
     ## clustering NoContrast
@@ -371,10 +386,14 @@ def main():
         from get_final_result import run_get_final_result
 
         num_threads = args.num_threads
-        seed_num = gen_seed(logger, args.contig_file, num_threads, args.contig_len, marker_name="bacar_marker",
-                            quarter="2quarter", hmm_evalue=args.hmm_evalue)
-
-        run_get_final_result(logger, args, seed_num, num_threads, ignore_kmeans_res=True)
+        try:
+            seed_num = gen_seed(logger, args.contig_file, num_threads, args.contig_len, marker_name="bacar_marker",
+                                quarter="2quarter", hmm_evalue=args.hmm_evalue)
+        except NoMarkerSeedsError as error:
+            write_empty_result(logger, args.output_path, str(error))
+        else:
+            (Path(args.output_path) / 'NO_BINS.txt').unlink(missing_ok=True)
+            run_get_final_result(logger, args, seed_num, num_threads, ignore_kmeans_res=True)
 
 
 if __name__ == '__main__':

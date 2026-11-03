@@ -173,7 +173,15 @@ def _stderr_tail(path, line_count=20):
         return ''
 
 
-def _run_external_command(logger, label, command, stdout_path, stderr_path):
+class NoMarkerSeedsError(RuntimeError):
+    """The assembly yields no usable single-copy marker seeds, so no bins can be selected."""
+
+
+# test_getmarker_*.pl: 3 = hits map to contigs but no usable seed set, 4 = empty seed set.
+_NO_SEED_MARKER_STATUSES = (3, 4)
+
+
+def _run_external_command(logger, label, command, stdout_path, stderr_path, tolerated_statuses=()):
     command = [str(argument) for argument in command]
     logger.info("%s command: %s", label, shlex.join(command))
     try:
@@ -182,7 +190,7 @@ def _run_external_command(logger, label, command, stdout_path, stderr_path):
     except OSError as error:
         raise RuntimeError(f"{label} could not be started: {error}") from error
     logger.info("%s exited with status %d; stderr=%s.", label, completed.returncode, stderr_path)
-    if completed.returncode != 0:
+    if completed.returncode != 0 and completed.returncode not in tolerated_statuses:
         stderr_tail = _stderr_tail(stderr_path)
         detail = f"; tail={stderr_tail}" if stderr_tail else ''
         raise RuntimeError(f"{label} failed with status {completed.returncode}; stderr={stderr_path}{detail}")
@@ -271,7 +279,7 @@ def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: in
     if _is_fresh(seed_result, contig_file, *([hmm_result] if hmm_result.is_file() else [])):
         seed_count = _count_seed_lines(seed_result)
         if seed_count == 0:
-            raise RuntimeError(f"Existing marker seed file contains no usable seeds: {seed_result}")
+            raise NoMarkerSeedsError(f"Existing marker seed file contains no usable seeds: {seed_result}")
         logger.info("Reusing marker seed file %s with %d seeds; --hmm_evalue applies only when HMMsearch runs and cached thresholds are not compared.",
                     seed_result, seed_count)
         return seed_count
@@ -296,7 +304,7 @@ def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: in
     if _is_fresh(hmm_result, frag_result):
         hit_count = _count_hmm_hits(hmm_result)
         if hit_count == 0:
-            raise RuntimeError(f"Existing HMMsearch result contains zero marker hits: {hmm_result}")
+            raise NoMarkerSeedsError(f"Existing HMMsearch result contains zero marker hits: {hmm_result}")
         logger.info("Reusing HMMsearch result %s with %d hits; --hmm_evalue applies only when HMMsearch runs and cached thresholds are not compared.",
                     hmm_result, hit_count)
     else:
@@ -319,7 +327,7 @@ def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: in
                 str(hmm_result) + '.out', str(hmm_result) + '.err')
             hit_count = _count_hmm_hits(hmm_temp)
             if hit_count == 0:
-                raise RuntimeError(f"HMMsearch completed but found zero marker hits: {hmm_temp}")
+                raise NoMarkerSeedsError(f"HMMsearch found zero single-copy marker hits in {frag_result}.")
             os.replace(hmm_temp, hmm_result)
             logger.info("Published HMMsearch result %s with %d hits.", hmm_result, hit_count)
         finally:
@@ -328,13 +336,16 @@ def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: in
 
     seed_temp = _temporary_result_path(seed_result)
     try:
-        _run_external_command(
+        completed = _run_external_command(
             logger, 'Marker seed generation',
             [perl_executable, marker_script, hmm_result, contig_file, contig_length_threshold, seed_temp],
-            str(seed_result) + '.out', str(seed_result) + '.err')
-        seed_count = _count_seed_lines(seed_temp)
+            str(seed_result) + '.out', str(seed_result) + '.err',
+            tolerated_statuses=_NO_SEED_MARKER_STATUSES)
+        seed_count = 0 if completed.returncode else _count_seed_lines(seed_temp)
         if seed_count == 0:
-            raise RuntimeError(f"Marker parsing completed but produced an empty seed set; hmm_hits={hit_count}; stderr={seed_result}.err")
+            raise NoMarkerSeedsError(
+                f"No usable marker seed set; hmm_hits={hit_count}, marker_status={completed.returncode}, "
+                f"stderr={seed_result}.err")
         os.replace(seed_temp, seed_result)
         logger.info("Published marker seed file %s with %d seeds.", seed_result, seed_count)
     finally:
