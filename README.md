@@ -1,5 +1,27 @@
 # COMEBin
 GitHub repository for the manuscript "Effective binning of metagenomic contigs using COntrastive Multi-viEw representation learning".
+## Changes in this fork branch (`perf-robustness`)
+
+These are speed and robustness fixes on top of v1.1.0 (`comebin-optimizations-v11`). Binning results stay identical, or identical up to floating-point rounding (see [benchmark/README.md](benchmark/README.md)). Progress is logged in [PROGRESS.md](PROGRESS.md).
+
+![component measurements](benchmark/figures/components.png)
+
+**Speed and memory**
+- **InfoNCE loss:** the log-sum-exp over negatives is taken once per anchor instead of building a 30,720 × 6,139 logits matrix. The loss step is 4.5× faster and peaks 1.8 GB lower; loss, gradients and accuracy are unchanged.
+- **Coverage features:** bedGraph statistics are vectorised with NumPy, 1.7× faster, and `bedtools` is now the limiting step.
+- **Training batches:** the training views are already in memory, so batches are gathered directly and no DataLoader workers are forked each epoch. Seeded batches are identical, and the `pymp-*` "Device or resource busy" errors on NFS temp dirs no longer occur.
+- **CheckM gene calls:** the archaeal CheckM pass reuses the bacterial pass's Prodigal gene calls.
+
+**Robustness**
+- Small assemblies (≤ `-m` contigs, e.g. the tools-iuc test data with the default `-m 100`) no longer crash. The HNSW neighbour count is capped at n − 1.
+- No usable marker seeds now gives an empty `comebin_res.tsv`, an empty `comebin_res_bins/` and `NO_BINS.txt`, and the run exits 0.
+- CheckM failures now stop the run. Previously `os.system` ignored their exit codes and `sys.exit()` returned 0.
+- An interrupted run no longer reuses incomplete CheckM profiles, truncated FragGeneScan proteins, or marker files older than the contig file.
+- `run_comebin.sh` prints the wall time of every stage.
+
+**Tests**
+- Unit tests live in `tests/`; run them with `python -m pytest tests`.
+
 - [Overview](#overview)
 - [System Requirements](#requirements)
 - [Install COMEBin via bioconda](#install)
