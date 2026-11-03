@@ -31,6 +31,13 @@ help_message () {
 	echo "  -b INT          batch size for training process (default=1024)"
 	echo "";}
 
+stage_start=${SECONDS}
+pipeline_start=${SECONDS}
+report_stage_time () {
+    echo "[COMEBin] Stage '$1' finished in $((SECONDS - stage_start)) s (total $((SECONDS - pipeline_start)) s)."
+    stage_start=${SECONDS}
+}
+
 report_stage_failure () {
     local stage_name=$1
     local stage_status=$2
@@ -172,6 +179,7 @@ fi
 if [[ ${augmentation_status} -ne 0 ]]; then
     report_stage_failure "Data augmentation" "${augmentation_status}"
 fi
+report_stage_time "data augmentation"
 
 ########################################################################################################
 ###### Get representation (training process)
@@ -202,6 +210,7 @@ fi
 if [[ ${train_status} -ne 0 ]]; then
     report_stage_failure "Training" "${train_status}"
 fi
+report_stage_time "training"
 
 ########################################################################################################
 #### Clustering (run Leiden-based clustering methods and get the final result)
@@ -223,6 +232,7 @@ bin_status=$?
 if [[ ${bin_status} -ne 0 ]]; then
     report_stage_failure "Clustering" "${bin_status}"
 fi
+report_stage_time "clustering"
 
 python "${main_py}" get_result --contig_file "${contig_file}" \
 --output_path "${output_dir}/comebin_res" \
@@ -234,3 +244,4 @@ result_status=$?
 if [[ ${result_status} -ne 0 ]]; then
     report_stage_failure "Final-result selection" "${result_status}"
 fi
+report_stage_time "final-result selection"
