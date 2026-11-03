@@ -8,14 +8,64 @@ import torch.nn as nn
 import numpy as np
 
 from get_augfeature import get_ContrastiveLearningDataset
-from utils import _process_memory_status, configure_reproducibility, seed_data_loader_worker
+from utils import _process_memory_status, configure_reproducibility
 
 from models.mlp import EmbeddingNet
 from models.mlp2 import CombinedEmbeddingNet
 from simclr import SimCLR
 
 
-DATALOADER_WORKERS = 4
+
+
+class _SizedDataset:
+    def __init__(self, length):
+        self._length = length
+
+    def __len__(self):
+        return self._length
+
+
+class InMemoryBatchLoader:
+    """Shuffled mini-batches over in-memory tensors without DataLoader workers.
+
+    Draws the same random numbers as ``DataLoader(TensorDataset(*views),
+    shuffle=True, drop_last=True, generator=generator)`` (one base-seed draw,
+    a ``randperm`` for the epoch, and the empty remainder ``randperm`` that
+    ``RandomSampler`` consumes when it is exhausted), so seeded runs produce
+    identical batches, but gathers
+    each batch with one tensor index instead of forking worker processes every
+    epoch and collating sample by sample.
+    """
+
+    drop_last = True
+
+    def __init__(self, views, batch_size, generator=None, pin_memory=False):
+        lengths = {len(view) for view in views}
+        if len(lengths) != 1:
+            raise ValueError(f'Training views have different lengths: {sorted(lengths)}.')
+        self.views = list(views)
+        self.batch_size = batch_size
+        self.generator = generator
+        self.pin_memory = pin_memory
+        self.dataset = _SizedDataset(lengths.pop())
+
+    def __len__(self):
+        return len(self.dataset) // self.batch_size
+
+    def __iter__(self):
+        n = len(self.dataset)
+        if self.generator is not None:
+            torch.empty((), dtype=torch.int64).random_(generator=self.generator)
+            order = torch.randperm(n, generator=self.generator)
+            torch.randperm(n, generator=self.generator)
+        else:
+            order = torch.randperm(n)
+        for batch in range(len(self)):
+            indexes = order[batch * self.batch_size:(batch + 1) * self.batch_size]
+            views = [view[indexes] for view in self.views]
+            if self.pin_memory:
+                views = [view.pin_memory() for view in views]
+            yield views
 
 
 def _resolve_training_device(requested):
@@ -87,9 +137,9 @@ def train_CLmodel(logger, args):
         raise ValueError('--fp16-precision requires a CUDA training device.')
     torch.set_num_threads(args.num_threads)
     logger.info(
-        "Training resources: device=%s, PyTorch intra-op threads=%d, DataLoader workers=%d (fixed). KMeans, NumPy, "
+        "Training resources: device=%s, PyTorch intra-op threads=%d, in-process batching (no DataLoader workers). KMeans, NumPy, "
         "scikit-learn, BLAS, OpenMP, and other native runtime pools are not controlled by --num_threads.",
-        args.device, torch.get_num_threads(), DATALOADER_WORKERS)
+        args.device, torch.get_num_threads())
 
     logger.info("Training diagnostics: pid=%d, Python=%s, PyTorch=%s, CUDA=%s, cuDNN=%s.",
                 os.getpid(), sys.version.split()[0], torch.__version__, torch.version.cuda,
@@ -164,25 +214,19 @@ def train_CLmodel(logger, args):
     else:
         train_mask = torch.from_numpy(train_mask)
         training_views = [view[train_mask] for view in selected_views]
-    train_dataset = torch.utils.data.TensorDataset(*training_views)
     if train_sample_count % args.batch_size:
         logger.warning("DataLoader drop_last=True will discard %d of %d trainable contigs in each epoch because "
                        "batch_size=%d.", train_sample_count % args.batch_size, train_sample_count, args.batch_size)
     data_loader_generator = None
-    data_loader_worker_init = None
     if args.seed is not None:
         data_loader_generator = torch.Generator()
         data_loader_generator.manual_seed(args.seed)
-        data_loader_worker_init = seed_data_loader_worker
-    logger.info("Build DataLoader: all_contigs=%d, trainable_contigs=%d, batch_size=%d, workers=%d, drop_last=True.",
-                len(namelist), train_sample_count, args.batch_size, DATALOADER_WORKERS)
-    train_loader = torch.utils.data.DataLoader(
-        train_dataset, batch_size=args.batch_size, shuffle=True,
-        num_workers=DATALOADER_WORKERS, pin_memory=args.device.type == 'cuda', drop_last=True,
-        worker_init_fn=data_loader_worker_init, generator=data_loader_generator)
+    logger.info("Build in-memory batch loader: all_contigs=%d, trainable_contigs=%d, batch_size=%d, drop_last=True.",
+                len(namelist), train_sample_count, args.batch_size)
+    train_loader = InMemoryBatchLoader(
+        training_views, batch_size=args.batch_size, generator=data_loader_generator,
+        pin_memory=args.device.type == 'cuda')
 
-    logger.info("DataLoader constructed; workers start when the first batch is requested. process_memory=%s.",
-                _process_memory_status())
     coverage_dimensions = dataset[0].shape[1] - 136
     if coverage_dimensions < 1:
         raise ValueError(
