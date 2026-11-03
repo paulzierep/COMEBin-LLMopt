@@ -1,4 +1,5 @@
 import os
+import shutil
 from collections import defaultdict
 from pathlib import Path
 
@@ -220,11 +221,20 @@ def _profile_marker_tables(logger, args, seed_num, num_threads, result_format, r
         raise RuntimeError(f'KMeans bin directory is missing: {bins_path}')
 
     output_dir = cluster_res_path / 'unitem_profile'
-    if not output_dir.exists():
-        logger.info("Run unitem profile:\t%s", seed_num)
-        output_dir.mkdir(parents=True)
-        Profile(num_threads).run({res_name: (str(bins_path), 'fa')}, str(output_dir))
     method_dir = output_dir / 'binning_methods' / res_name
+    tables = [method_dir / sub / name
+              for sub in ('checkm_bac', 'checkm_ar')
+              for name in ('marker_gene_table.tsv', 'genome_quality.tsv')]
+    if all(table.is_file() and table.stat().st_size > 0 for table in tables):
+        logger.info("Reuse complete unitem profile:\t%s", method_dir)
+    else:
+        # A missing table means an interrupted or different earlier run; redo this method.
+        if method_dir.exists():
+            logger.warning("Discard incomplete unitem profile:\t%s", method_dir)
+            shutil.rmtree(method_dir)
+        logger.info("Run unitem profile:\t%s", seed_num)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        Profile(num_threads).run({res_name: (str(bins_path), 'fa')}, str(output_dir))
     return (method_dir / 'checkm_bac/marker_gene_table.tsv',
             method_dir / 'checkm_ar/marker_gene_table.tsv')
 

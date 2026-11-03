@@ -22,6 +22,8 @@ from __future__ import division
 from __future__ import print_function
 
 import os
+import shutil
+import subprocess
 import sys
 import logging
 from collections import defaultdict
@@ -34,6 +36,36 @@ from biolib.common import make_sure_path_exists, check_dir_exists
 # add
 import argparse
 from collections import Counter
+
+
+_GENE_FILES = ('genes.faa', 'genes.fna', 'genes.gff')
+
+
+def _run_checkm(command):
+    """Run one CheckM command and fail loudly instead of continuing silently."""
+    completed = subprocess.run(command, check=False)
+    if completed.returncode != 0:
+        raise RuntimeError(
+            'CheckM command failed with status %d: %s' % (completed.returncode, ' '.join(command)))
+
+
+def _reuse_called_genes(source_dir, target_dir):
+    """Hard-link (or copy) Prodigal outputs of a finished CheckM run into another one."""
+    source_bins = os.path.join(source_dir, 'bins')
+    if not os.path.isdir(source_bins):
+        return
+    for bin_id in os.listdir(source_bins):
+        target_bin = os.path.join(target_dir, 'bins', bin_id)
+        os.makedirs(target_bin, exist_ok=True)
+        for name in _GENE_FILES:
+            source = os.path.join(source_bins, bin_id, name)
+            target = os.path.join(target_bin, name)
+            if not os.path.isfile(source) or os.path.exists(target):
+                continue
+            try:
+                os.link(source, target)
+            except OSError:
+                shutil.copyfile(source, target)
 
 
 class Profile():
@@ -173,28 +205,22 @@ class Profile():
             num_processed += 1
             self.logger.info('Profiling %s (%d of %d).' % (method_id, num_processed, len(bin_dirs)))
 
+            bac_output_dir = os.path.join(output_dir, BINNING_METHOD_DIR, method_id, CHECKM_BAC_DIR)
             for d, ms_file in [(CHECKM_BAC_DIR, CHECKM_BAC_MS), (CHECKM_AR_DIR, CHECKM_AR_MS)]:
                 cur_output_dir = os.path.join(output_dir, BINNING_METHOD_DIR, method_id, d)
-                cmd = 'checkm analyze -t %d -x %s %s %s %s' % (self.cpus,
-                                                               bin_ext,
-                                                               ms_file,
-                                                               bin_dir,
-                                                               cur_output_dir)
-                os.system(cmd)
+                if d == CHECKM_AR_DIR:
+                    # Gene calls do not depend on the marker set; reuse the bacterial pass.
+                    _reuse_called_genes(bac_output_dir, cur_output_dir)
+                _run_checkm(['checkm', 'analyze', '-t', str(self.cpus), '-x', bin_ext,
+                             ms_file, bin_dir, cur_output_dir])
 
                 marker_gene_table = os.path.join(cur_output_dir, MARKER_GENE_TABLE)
-                cmd = 'checkm qa -t %d -o 5 --tab_table -f %s %s %s' % (self.cpus,
-                                                                        marker_gene_table,
-                                                                        ms_file,
-                                                                        cur_output_dir)
-                os.system(cmd)
+                _run_checkm(['checkm', 'qa', '-t', str(self.cpus), '-o', '5', '--tab_table',
+                             '-f', marker_gene_table, ms_file, cur_output_dir])
 
                 genome_quality_table = os.path.join(cur_output_dir, GENOME_QUALITY_TABLE)
-                cmd = 'checkm qa -t %d -o 2 --tab_table -f %s %s %s' % (self.cpus,
-                                                                        genome_quality_table,
-                                                                        ms_file,
-                                                                        cur_output_dir)
-                os.system(cmd)
+                _run_checkm(['checkm', 'qa', '-t', str(self.cpus), '-o', '2', '--tab_table',
+                             '-f', genome_quality_table, ms_file, cur_output_dir])
 
             bac_quality_table = os.path.join(output_dir,
                                              BINNING_METHOD_DIR,
@@ -207,9 +233,9 @@ class Profile():
                                             CHECKM_AR_DIR,
                                             GENOME_QUALITY_TABLE)
             if not os.path.exists(bac_quality_table) or not os.path.exists(ar_quality_table):
-                self.logger.error('Missing quality table for %s.' % method_id)
-                self.logger.error('Please verify there were bins in the bin directory specified for this method.')
-                sys.exit()
+                raise RuntimeError(
+                    'Missing CheckM quality table for %s; verify that the bin directory '
+                    'contains bins.' % method_id)
 
             genome_quality[method_id] = self._genome_quality(bac_quality_table, ar_quality_table)
 
