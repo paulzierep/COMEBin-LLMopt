@@ -219,6 +219,35 @@ def _hmm_models_have_tc_cutoffs(hmm_file):
     return model_count > 0 and tc_count == model_count
 
 
+def _is_fresh(path: Path, *sources) -> bool:
+    """A cached result is reusable only if it is non-empty and newer than its inputs."""
+    if not path.is_file() or path.stat().st_size == 0:
+        return False
+    mtime = path.stat().st_mtime
+    return all(mtime >= Path(source).stat().st_mtime for source in sources)
+
+
+def _run_fragscan_atomic(logger, fragscan_executable, contig_file, frag_prefix, threads):
+    """Run FragGeneScan into a temporary prefix and publish its outputs only on success."""
+    temp_prefix = f'{frag_prefix}.{os.getpid()}.tmp'
+    suffixes = ('.faa', '.ffn', '.gff', '.out')
+    try:
+        _run_external_command(
+            logger, 'FragGeneScan',
+            [fragscan_executable, '-s', contig_file, '-o', temp_prefix, '-w', '0', '-t', 'complete', '-p', threads],
+            frag_prefix + '.out.log', frag_prefix + '.err')
+        temp_faa = Path(temp_prefix + '.faa')
+        if not temp_faa.is_file() or temp_faa.stat().st_size == 0:
+            raise RuntimeError(f"FragGeneScan completed but produced no proteins: {temp_faa}")
+        # Publish the protein file last: its presence marks a complete run.
+        for suffix in suffixes[1:] + suffixes[:1]:
+            if Path(temp_prefix + suffix).is_file():
+                os.replace(temp_prefix + suffix, frag_prefix + suffix)
+    finally:
+        for suffix in suffixes:
+            Path(temp_prefix + suffix).unlink(missing_ok=True)
+
+
 def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: int,
              marker_name: str = "marker", quarter: str = "3quarter",
              hmm_evalue: float = DEFAULT_HMM_EVALUE):
@@ -238,7 +267,8 @@ def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: in
         raise ValueError(f"hmm_evalue must be a finite positive number, got {hmm_evalue}.")
 
     seed_result = Path(contig_file + f'.{marker_name}.{quarter}_lencutoff_{contig_length_threshold}.seed')
-    if seed_result.is_file() and seed_result.stat().st_size > 0:
+    hmm_result = Path(contig_file + f'.{marker_name}.hmmout')
+    if _is_fresh(seed_result, contig_file, *([hmm_result] if hmm_result.is_file() else [])):
         seed_count = _count_seed_lines(seed_result)
         if seed_count == 0:
             raise RuntimeError(f"Existing marker seed file contains no usable seeds: {seed_result}")
@@ -258,18 +288,12 @@ def gen_seed(logger, contig_file: str, threads: int, contig_length_threshold: in
 
     frag_prefix = contig_file + '.frag'
     frag_result = Path(frag_prefix + '.faa')
-    if not frag_result.is_file() or frag_result.stat().st_size == 0:
-        _run_external_command(
-            logger, 'FragGeneScan',
-            [fragscan_executable, '-s', contig_file, '-o', frag_prefix, '-w', '0', '-t', 'complete', '-p', threads],
-            contig_file + '.frag.out', contig_file + '.frag.err')
-        if not frag_result.is_file() or frag_result.stat().st_size == 0:
-            raise RuntimeError(f"FragGeneScan completed but produced no proteins: {frag_result}")
+    if not _is_fresh(frag_result, contig_file):
+        _run_fragscan_atomic(logger, fragscan_executable, contig_file, frag_prefix, threads)
     else:
         logger.info("Reusing FragGeneScan protein file: %s.", frag_result)
 
-    hmm_result = Path(contig_file + f'.{marker_name}.hmmout')
-    if hmm_result.is_file() and hmm_result.stat().st_size > 0:
+    if _is_fresh(hmm_result, frag_result):
         hit_count = _count_hmm_hits(hmm_result)
         if hit_count == 0:
             raise RuntimeError(f"Existing HMMsearch result contains zero marker hits: {hmm_result}")
