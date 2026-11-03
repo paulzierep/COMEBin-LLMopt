@@ -11,7 +11,7 @@ from torch.amp import GradScaler, autocast
 from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 from embedding_bundle import invalidate_embedding_manifest, publish_embedding_bundle
-from utils import _process_memory_status, save_config_file, accuracy, save_checkpoint
+from utils import _process_memory_status, save_config_file, save_checkpoint
 import numpy as np
 
 
@@ -38,7 +38,6 @@ class SimCLR(object):
         self.logger.info("NN setup: create TensorBoard writer in %s.", self.args.output_path)
         self.writer = SummaryWriter(log_dir=self.args.output_path)
         logging.basicConfig(filename=os.path.join(self.args.output_path, 'training.log'), level=logging.DEBUG)
-        self.criterion = torch.nn.CrossEntropyLoss().to(self.args.device)
         self.logger.info("NN setup finished; loss function and training state are ready.")
 
     def _autocast_context(self):
@@ -69,36 +68,45 @@ class SimCLR(object):
             epoch_counter + 1, total_epochs, batch_count, loss.detach().item(), top1[0].item(),
             time.monotonic() - epoch_start, _process_memory_status(), self._gpu_memory_status())
 
-    def info_nce_loss(self, features):
+    def info_nce_loss(self, features, with_accuracy=False):
         """
-        Calculate the InfoNCE loss for SimCLR.
+        Multi-positive InfoNCE loss for SimCLR.
 
-        :param features: Input features.
-        :return: Logits and labels for the loss.
+        Mathematically identical to building one logits row per (anchor, positive)
+        pair as ``[positive, all negatives]`` and applying cross-entropy, but the
+        log-sum-exp over the negatives is computed once per anchor. This avoids
+        materialising an ``N*(n_views-1) x N`` logits matrix (about 750 MB per
+        default batch) and its gradient.
+
+        :param features: Projections of shape ``(batch * n_views, dim)``.
+        :param with_accuracy: Also return top-1/top-5 accuracy of the positives.
+        :return: ``loss`` or ``(loss, top1, top5)`` with accuracies in percent.
         """
-        sample_ids = torch.arange(self.args.batch_size, device=features.device).repeat(self.args.n_views)
-        positive_mask = sample_ids.unsqueeze(0).eq(sample_ids.unsqueeze(1))
+        n_views = self.args.n_views
+        total = features.shape[0]
+        if total % n_views:
+            raise ValueError(f'Feature rows ({total}) are not divisible by n_views ({n_views}).')
+        sample_ids = torch.arange(total // n_views, device=features.device).repeat(n_views)
+        same_sample = sample_ids.unsqueeze(0).eq(sample_ids.unsqueeze(1))
+        diagonal = torch.eye(total, dtype=torch.bool, device=features.device)
 
         features = F.normalize(features, dim=1)
+        logits = torch.matmul(features, features.T) / self.args.temperature
+        positives = logits[same_sample & ~diagonal].view(total, n_views - 1)
+        negatives = logits.masked_fill(same_sample, float('-inf'))
+        negative_lse = torch.logsumexp(negatives, dim=1, keepdim=True)
+        loss = (torch.logaddexp(positives, negative_lse) - positives).mean()
+        if not with_accuracy:
+            return loss
 
-        similarity_matrix = torch.matmul(features, features.T)
-
-        # discard the main diagonal from both: labels and similarities matrix
-        diagonal_mask = torch.eye(positive_mask.shape[0], dtype=torch.bool, device=features.device)
-        positive_mask = positive_mask[~diagonal_mask].view(positive_mask.shape[0], -1)
-        similarity_matrix = similarity_matrix[~diagonal_mask].view(similarity_matrix.shape[0], -1)
-
-        # select and combine multiple positives
-        positives = similarity_matrix[positive_mask].view(-1, 1)
-        # select only the negatives the negatives
-        negatives = similarity_matrix[~positive_mask].view(similarity_matrix.shape[0], -1)
-        negatives = negatives[:, None].expand(-1, self.args.n_views - 1, -1).flatten(0, 1)
-
-        logits = torch.cat([positives, negatives], dim=1)
-        labels = torch.zeros(logits.shape[0], dtype=torch.long, device=features.device)
-
-        logits = logits / self.args.temperature
-        return logits, labels
+        with torch.no_grad():
+            k = max(1, min(5, negatives.shape[1] - n_views))
+            top_negatives = negatives.topk(k, dim=1).values
+            # Rank of each positive among [positive, negatives] (0 = best).
+            rank = (top_negatives.unsqueeze(1) > positives.unsqueeze(2)).sum(dim=2)
+            top1 = (rank < 1).float().mean() * 100
+            top5 = (rank < 5).float().mean() * 100
+        return loss, top1.reshape(1), top5.reshape(1)
 
     def _publish_embeddings(self, data, namelist, contig_lengths, kmer_len):
         output_path = Path(self.args.output_path)
@@ -213,10 +221,13 @@ class SimCLR(object):
                 if epoch_counter == 0 and batch_index == 0:
                     self.logger.info("NN training: first combined-model batch moved to %s; shape=%s.",
                                      self.args.device, tuple(contig_features.shape))
+                last_batch = batch_index == len(train_loader) - 1
                 with self._autocast_context():
                     features, _ = self.model(contig_features[:, -kmer_len:], contig_features[:, :-kmer_len])
-                    logits, labels = self.info_nce_loss(features)
-                    loss = self.criterion(logits, labels)
+                    if last_batch:
+                        loss, top1, top5 = self.info_nce_loss(features, with_accuracy=True)
+                    else:
+                        loss = self.info_nce_loss(features)
                 if epoch_counter == 0 and batch_index == 0:
                     self.logger.info("NN training: first combined-model forward pass finished; loss=%s.",
                                      loss.detach().item())
@@ -235,7 +246,6 @@ class SimCLR(object):
                     f"Epoch {epoch_counter + 1} received no DataLoader batches; "
                     f"samples={len(train_loader.dataset)}, batch_size={train_loader.batch_size}, "
                     f"drop_last={train_loader.drop_last}.")
-            top1, top5 = accuracy(logits, labels, topk=(1, min(5, logits.shape[1])))
             self._log_epoch_progress(
                 epoch_counter, self.args.epochs, batch_count, loss, top1, epoch_start)
 

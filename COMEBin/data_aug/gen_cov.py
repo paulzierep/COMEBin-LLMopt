@@ -38,14 +38,6 @@ def _build_coverage_context(out_path, n_views, contig_len):
         bundle.augmentation_intervals[:, :, 1])
 
 
-def _update_stats(count, mean, m2, value, weight):
-    if weight <= 0:
-        return count, mean, m2
-    new_count = count + weight
-    delta = value - mean
-    mean += delta * weight / new_count
-    m2 += delta * delta * count * weight / new_count
-    return new_count, mean, m2
 
 
 def _parse_bedgraph_line(contig_name, line):
@@ -67,48 +59,82 @@ def _parse_bedgraph_line(contig_name, line):
     return depth_start, depth_end, depth
 
 
-def _summarize_contig(contig_name, lines, starts, ends):
-    counts = np.zeros(len(starts), dtype=np.int64)
-    means = np.zeros(len(starts), dtype=np.float64)
-    m2 = np.zeros(len(starts), dtype=np.float64)
-    previous_end = 0
-    contig_length = int(ends[0])
-
+def _parse_bedgraph_group(contig_name, lines):
+    """Parse one contig's bedGraph rows into start/end/depth arrays."""
+    rows = []
     for line in lines:
-        depth_start, depth_end, depth = _parse_bedgraph_line(contig_name, line)
-        if depth_start != previous_end or depth_end > contig_length:
+        fields = line.rstrip('\r\n').split('\t')
+        if len(fields) != 4 or fields[0] != contig_name:
             raise ValueError(
-                f'Non-contiguous bedGraph coverage for {contig_name}: '
-                f'previous_end={previous_end}, row={line.rstrip()}')
-        previous_end = depth_end
-        for view in range(len(starts)):
-            overlap = max(
-                0, min(depth_end, int(ends[view])) -
-                max(depth_start, int(starts[view])))
-            counts[view], means[view], m2[view] = _update_stats(
-                counts[view], means[view], m2[view], depth, overlap)
+                f'Malformed bedGraph row for {contig_name}: {line.rstrip()}')
+        rows.append(fields)
+    if not rows:
+        raise ValueError(f'Empty bedGraph group for {contig_name}.')
+    try:
+        depth_starts = np.array([row[1] for row in rows], dtype=np.int64)
+        depth_ends = np.array([row[2] for row in rows], dtype=np.int64)
+        depths = np.array([row[3] for row in rows], dtype=np.float64)
+    except ValueError:
+        # Re-parse row by row to report the first offending line.
+        for row in rows:
+            _parse_bedgraph_line(contig_name, '\t'.join(row))
+        raise
+    invalid = ((depth_starts < 0) | (depth_ends <= depth_starts) |
+               ~np.isfinite(depths) | (depths < 0))
+    if invalid.any():
+        row = rows[int(np.flatnonzero(invalid)[0])]
+        raise ValueError(
+            f'Invalid bedGraph interval for {contig_name}: {chr(9).join(row)}')
+    previous_ends = np.concatenate(([0], depth_ends[:-1]))
+    gaps = depth_starts != previous_ends
+    return depth_starts, depth_ends, depths, gaps, rows
 
-    if previous_end != contig_length:
+
+def _summarize_contig(contig_name, lines, starts, ends):
+    depth_starts, depth_ends, depths, gaps, rows = _parse_bedgraph_group(
+        contig_name, lines)
+    contig_length = int(ends[0])
+    beyond = depth_ends > contig_length
+    bad = gaps | beyond
+    if bad.any():
+        index = int(np.flatnonzero(bad)[0])
+        previous_end = 0 if index == 0 else int(depth_ends[index - 1])
+        raise ValueError(
+            f'Non-contiguous bedGraph coverage for {contig_name}: '
+            f'previous_end={previous_end}, row={chr(9).join(rows[index])}')
+    if int(depth_ends[-1]) != contig_length:
         raise ValueError(
             f'Incomplete bedGraph span for {contig_name}: '
-            f'observed_end={previous_end}, expected_end={contig_length}.')
+            f'observed_end={int(depth_ends[-1])}, expected_end={contig_length}.')
+
+    starts = np.asarray(starts, dtype=np.int64)
+    ends = np.asarray(ends, dtype=np.int64)
+    # overlap[view, row]: bases of each bedGraph interval inside each view.
+    overlap = np.clip(
+        np.minimum(depth_ends[None, :], ends[:, None]) -
+        np.maximum(depth_starts[None, :], starts[:, None]), 0, None)
+    counts = overlap.sum(axis=1)
     expected = ends - starts
     if not np.array_equal(counts, expected):
         raise ValueError(
             f'Incomplete coverage for {contig_name}: '
             f'observed={counts.tolist()}, expected={expected.tolist()}.')
-    return means, m2 / counts
+    weights = overlap.astype(np.float64)
+    means = weights @ depths / counts
+    deviations = depths[None, :] - means[:, None]
+    variances = np.einsum('vr,vr->v', weights, deviations * deviations) / counts
+    return means, variances
 
 
 def _validate_ignored_group(contig_name, lines):
-    previous_end = 0
-    for line in lines:
-        depth_start, depth_end, _ = _parse_bedgraph_line(contig_name, line)
-        if depth_start != previous_end:
-            raise ValueError(
-                f'Non-contiguous bedGraph coverage for ignored contig '
-                f'{contig_name}: previous_end={previous_end}, row={line.rstrip()}')
-        previous_end = depth_end
+    depth_starts, depth_ends, _, gaps, rows = _parse_bedgraph_group(
+        contig_name, lines)
+    if gaps.any():
+        index = int(np.flatnonzero(gaps)[0])
+        previous_end = 0 if index == 0 else int(depth_ends[index - 1])
+        raise ValueError(
+            f'Non-contiguous bedGraph coverage for ignored contig '
+            f'{contig_name}: previous_end={previous_end}, row={chr(9).join(rows[index])}')
 
 
 def _stream_bam_coverage(bam_path, context, sample_mean, sample_var, seen):

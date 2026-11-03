@@ -352,10 +352,18 @@ def resolve_clustering_worker_counts(num_threads, leiden_workers, available_cpu_
 
 
 def validate_max_edges(max_edges, contig_count):
-    if max_edges < 1 or max_edges >= contig_count:
+    """Return the neighbor count usable for the HNSW graph.
+
+    Small assemblies cannot provide ``max_edges`` neighbors per contig; cap the
+    query at ``contig_count - 1`` instead of failing. Output names keep the
+    requested value so later stages find the same result grid.
+    """
+    if max_edges < 1:
+        raise ValueError(f'max_edges must be at least 1; received max_edges={max_edges}.')
+    if contig_count < 2:
         raise ValueError(
-            f'max_edges must be between 1 and the retained contig count minus one; '
-            f'received max_edges={max_edges}, retained_contigs={contig_count}.')
+            f'Clustering needs at least two retained contigs; retained_contigs={contig_count}.')
+    return min(max_edges, contig_count - 1)
 
 
 def _read_proc_value_mib(path, key):
@@ -548,7 +556,11 @@ def cluster_features(logger, args, features, contig_ids, contig_lengths,
     hnsw_num_threads, requested_leiden_workers, leiden_num_workers = resolve_clustering_worker_counts(
         args.num_threads, args.leiden_workers, available_cpu_count)
     max_edges = args.max_edges
-    validate_max_edges(max_edges, len(contig_ids))
+    knn_edges = validate_max_edges(max_edges, len(contig_ids))
+    if knn_edges < max_edges:
+        logger.warning(
+            "max_edges=%d exceeds the retained contig count minus one; using %d HNSW neighbors.",
+            max_edges, knn_edges)
     logger.info(
         "Clustering workers: requested_hnsw_threads=%d, effective_hnsw_threads=%d, requested_leiden_workers=%d, effective_leiden_workers=%d, available_cpus=%d.",
         args.num_threads, hnsw_num_threads, requested_leiden_workers, leiden_num_workers, available_cpu_count)
@@ -573,10 +585,10 @@ def cluster_features(logger, args, features, contig_ids, contig_lengths,
 
     if jobs:
         p = fit_hnsw_index(logger, norm_embeddings, num_threads=hnsw_num_threads,
-                           ef=max_edges * 10, random_seed=args.seed)
+                           ef=knn_edges * 10, random_seed=args.seed)
         time_start = time.time()
         logger.info("Query completed HNSW index with %d threads.", hnsw_num_threads)
-        ann_neighbor_indices, ann_distances = p.knn_query(norm_embeddings, max_edges + 1, num_threads=hnsw_num_threads)
+        ann_neighbor_indices, ann_distances = p.knn_query(norm_embeddings, knn_edges + 1, num_threads=hnsw_num_threads)
         time_end = time.time()
         logger.info('knn query time cost:\t' + str(time_end - time_start) + "s")
         del p
@@ -586,7 +598,7 @@ def cluster_features(logger, args, features, contig_ids, contig_lengths,
         is_membership_fixed = is_membership_fixed.tolist()
 
         context = prepare_leiden_context(
-            contig_ids, ann_neighbor_indices, ann_distances, length_weight, max_edges,
+            contig_ids, ann_neighbor_indices, ann_distances, length_weight, knn_edges,
             is_membership_fixed, jobs, lmode='l2')
         del ann_neighbor_indices, ann_distances
         context['seed'] = args.seed
