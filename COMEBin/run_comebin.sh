@@ -32,6 +32,7 @@ help_message () {
 	echo "  -e INT          embedding size for comebin network (default=2048)"
 	echo "  -c INT          embedding size for coverage network (default=2048)"
 	echo "  -b INT          batch size for training process (default=1024)"
+	echo "  -L INT          only bin contigs of at least INT bp; shorter ones stay unbinned (default=1001, i.e. no extra filter)"
 	echo "";}
 
 stage_start=${SECONDS}
@@ -69,8 +70,9 @@ random_seed=
 leiden_workers=
 max_edges=100
 hmm_evalue=1e-5
+min_contig_length=
 
-while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b: OPT; do
+while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b:L: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -105,6 +107,8 @@ while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b: OPT; do
   c) emb_szs_forcov=${OPTARG}
     ;;
   b) batch_size=${OPTARG}
+    ;;
+  L) min_contig_length=${OPTARG}
     ;;
   \?)
 #    printf "[Usage] `date '+%F %T'` -i <INPUT_FILE> -o <OUTPUT_DIR> -o <P
@@ -147,6 +151,26 @@ else
 fi
 
 main_py="${comebin_dir}/main.py"
+
+# COMEBin itself only uses contigs longer than 1000 bp. A larger minimum length
+# is applied by binning a filtered copy of the assembly; coverage ignores BAM
+# references that are not in it.
+if [ -n "${min_contig_length}" ]; then
+    if ! [[ "${min_contig_length}" =~ ^[0-9]+$ ]]; then
+        echo "-L needs a positive integer, got '${min_contig_length}'." >&2
+        exit 1
+    fi
+    if (( min_contig_length > 1001 )); then
+        filtered_contig_file="${output_dir}/contigs_min${min_contig_length}.fa"
+        if [[ ! -s "${filtered_contig_file}" ]]; then
+            mkdir -p "${output_dir}" || exit 1
+            python "${comebin_dir}/scripts/filter_min_length.py" \
+                "${contig_file}" "${filtered_contig_file}" "${min_contig_length}" || exit 1
+        fi
+        contig_file="${filtered_contig_file}"
+        echo "Minimum contig length: ${min_contig_length} bp (binning ${contig_file})"
+    fi
+fi
 
 temperature_options=()
 if [ -n "${temperature}" ]; then
