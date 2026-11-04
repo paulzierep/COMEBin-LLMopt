@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from models.fast_dropout import FastDropout
 import numpy as np
 
 class EmbeddingNet(nn.Module):
@@ -35,7 +36,7 @@ class EmbeddingNet(nn.Module):
         "Sequence of batchnorm (if `bn`), dropout (with `p`) and linear (`n_in`,`n_out`) layers followed by `actn`."
         layers = [nn.BatchNorm1d(n_in)] if bn else []
         if p != 0:
-            layers.append(nn.Dropout(p))
+            layers.append(FastDropout(p))
         layers.append(nn.Linear(n_in, n_out))
         if actn is not None:
             layers.append(actn)
