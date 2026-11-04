@@ -1,8 +1,28 @@
-# COMEBin
-GitHub repository for the manuscript "Effective binning of metagenomic contigs using COntrastive Multi-viEw representation learning".
-## Changes in this fork branch (`perf-robustness`)
+# ComeBot
 
-These are speed and robustness fixes on top of v1.1.0 (`comebin-optimizations-v11`). Binning results stay identical, or identical up to floating-point rounding (see [benchmark/README.md](benchmark/README.md)). Progress is logged in [PROGRESS.md](PROGRESS.md).
+**ComeBot** bins metagenomic contigs with contrastive multi-view representation
+learning. It is a faster, more robust version of
+[COMEBin](https://github.com/ziyewang/COMEBin) v1.1.0, improved with the help of
+an LLM coding agent and benchmarked against the original on fixed datasets.
+
+ComeBot is not an official COMEBin release, and the COMEBin authors have not
+reviewed it. It is distributed under GPL-3.0 like COMEBin; see
+[NOTICE.md](NOTICE.md) for the modification notice and
+[CHANGELOG.md](CHANGELOG.md) for every change. If you use ComeBot, please cite
+the COMEBin paper ([Citation](#Citation)).
+
+```sh
+comebot -a contigs.fasta -p bam_dir/ -o out/ -t 32
+```
+
+`comebot` takes the same options as COMEBin's `run_comebin.sh`, which still
+works. Results are in `out/comebin_res/` as in COMEBin.
+
+## What is different from COMEBin v1.1.0
+
+Same method and default parameters; bins are identical up to floating-point
+rounding. On BATS medium (3,000 contigs, 32 CPU threads) a run takes 19.5 min
+instead of 38.5 min. Progress and open work are in [PROGRESS.md](PROGRESS.md).
 
 ![component measurements](benchmark/figures/components.png)
 
@@ -17,10 +37,16 @@ These are speed and robustness fixes on top of v1.1.0 (`comebin-optimizations-v1
 - No usable marker seeds now gives an empty `comebin_res.tsv`, an empty `comebin_res_bins/` and `NO_BINS.txt`, and the run exits 0.
 - CheckM failures now stop the run. Previously `os.system` ignored their exit codes and `sys.exit()` returned 0.
 - An interrupted run no longer reuses incomplete CheckM profiles, truncated FragGeneScan proteins, or marker files older than the contig file.
-- `run_comebin.sh` prints the wall time of every stage.
+- The log shows the wall time of every stage.
 
-**Tests**
-- Unit tests live in `tests/`; run them with `python -m pytest tests`.
+**Tests:** `python -m pytest tests`.
+
+## Original COMEBin documentation
+
+The sections below are from COMEBin v1.1.0. The installation steps install
+COMEBin; for ComeBot, clone this repository instead and use `COMEBin/comebot`.
+Contact the COMEBin authors only about COMEBin itself; report ComeBot problems
+at <https://github.com/paulzierep/COMEBin/issues>.
 
 - [Overview](#overview)
 - [System Requirements](#requirements)

@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 import numpy as np
 
-from comebin_version import __version__ as ver
+from comebin_version import __version__ as ver, based_on
 from train_CLmodel import train_CLmodel
 from cluster import cluster
 from utils import DEFAULT_HMM_EVALUE, DEFAULT_RANDOM_SEED, configure_reproducibility
@@ -29,10 +29,10 @@ def arguments():
 
     :return: Parsed command-line arguments
     """
-    doc = f"""COMEBin: a contig binning method based on COntrastive Multi-viEw representation learning.
-    Version:{ver}"""
+    doc = f"""ComeBot: contig binning by contrastive multi-view representation learning.
+    Version:{ver} (based on {based_on}; modified, see NOTICE.md)"""
     parser = argparse.ArgumentParser(
-        prog="comebin",
+        prog="comebot",
         description=doc,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         usage="%(prog)s outdir contig_file path_to_bamfiles [options]")
@@ -264,7 +264,7 @@ def main():
     args = arguments()
 
     # logging
-    logger = logging.getLogger('COMEBin\t'+ver)
+    logger = logging.getLogger('ComeBot\t'+ver)
     logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s - %(message)s')
