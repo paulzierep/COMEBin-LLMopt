@@ -1,6 +1,6 @@
 # Changelog
 
-ComeBot versions. Each entry lists changes relative to the previous version;
+COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
 0.1.0 lists the changes relative to COMEBin v1.1.0.
 
 ## 0.1.0 (unreleased)
@@ -8,7 +8,7 @@ ComeBot versions. Each entry lists changes relative to the previous version;
 Based on COMEBin v1.1.0.
 
 ### Renamed
-- The tool is now **ComeBot**. Run it with `comebot` (same options as `run_comebin.sh`, which still works). Modification notice in `NOTICE.md`.
+- The tool is now **COMEBin-LLMopt**. Run it with `comebin-llmopt` (same options as `run_comebin.sh`, which still works). Modification notice in `NOTICE.md`.
 
 ### Faster
 - **Training loss:** InfoNCE takes one log-sum-exp over the negatives per anchor instead of building the full logits matrix. The loss step is 4.5× faster and peaks 1.8 GB lower; loss, gradients and accuracy are unchanged.

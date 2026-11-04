@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
 
 ##############################################################################################################################################################
-# ComeBot: run the binning pipeline after obtaining the bam files.
-# ComeBot is a modified version of COMEBin v1.1.0 by Ziye Wang (zwang17@fudan.edu.cn),
+# COMEBin-LLMopt: run the binning pipeline after obtaining the bam files.
+# COMEBin-LLMopt is a modified version of COMEBin v1.1.0 by Ziye Wang (zwang17@fudan.edu.cn),
 # changed by Paul Zierep since 2026-09 (see NOTICE.md and CHANGELOG.md).
-# Report problems with ComeBot at https://github.com/paulzierep/COMEBin/issues,
+# Report problems with COMEBin-LLMopt at https://github.com/paulzierep/COMEBin/issues,
 # not to the COMEBin authors.
 ##############################################################################################################################################################
 VERSION="0.1.0"
@@ -12,12 +12,12 @@ BASED_ON="COMEBin 1.1.0"
 
 help_message () {
   echo ""
-  echo "ComeBot version: $VERSION (based on $BASED_ON)"
-  echo "Usage: comebot [options] -a contig_file -o output_dir -p bam_file_path"
+  echo "COMEBin-LLMopt version: $VERSION (based on $BASED_ON)"
+  echo "Usage: comebin-llmopt [options] -a contig_file -o output_dir -p bam_file_path"
 	echo "Options:"
 	echo ""
 	echo "  -h              display this help message and exit"
-	echo "  -V              display the ComeBot version and exit"
+	echo "  -V              display the COMEBin-LLMopt version and exit"
 	echo "  -a STR          metagenomic assembly file"
 	echo "  -o STR          output directory"
 	echo "  -p STR          path to access to the bam files"
@@ -37,7 +37,7 @@ help_message () {
 stage_start=${SECONDS}
 pipeline_start=${SECONDS}
 report_stage_time () {
-    echo "[ComeBot] Stage '$1' finished in $((SECONDS - stage_start)) s (total $((SECONDS - pipeline_start)) s)."
+    echo "[COMEBin-LLMopt] Stage '$1' finished in $((SECONDS - stage_start)) s (total $((SECONDS - pipeline_start)) s)."
     stage_start=${SECONDS}
 }
 
@@ -75,7 +75,7 @@ while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b: OPT; do
   h) help_message
     exit 0
     ;;
-  V) echo "ComeBot version: $VERSION (based on $BASED_ON)"
+  V) echo "COMEBin-LLMopt version: $VERSION (based on $BASED_ON)"
     exit 0
     ;;
   a) contig_file=$(realpath -e -- "${OPTARG}") || exit 1

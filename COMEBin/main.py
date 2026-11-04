@@ -29,10 +29,10 @@ def arguments():
 
     :return: Parsed command-line arguments
     """
-    doc = f"""ComeBot: contig binning by contrastive multi-view representation learning.
+    doc = f"""COMEBin-LLMopt: contig binning by contrastive multi-view representation learning.
     Version:{ver} (based on {based_on}; modified, see NOTICE.md)"""
     parser = argparse.ArgumentParser(
-        prog="comebot",
+        prog="comebin-llmopt",
         description=doc,
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
         usage="%(prog)s outdir contig_file path_to_bamfiles [options]")
@@ -264,7 +264,7 @@ def main():
     args = arguments()
 
     # logging
-    logger = logging.getLogger('ComeBot\t'+ver)
+    logger = logging.getLogger('COMEBin-LLMopt\t'+ver)
     logger.setLevel(logging.INFO)
 
     formatter = logging.Formatter('%(asctime)s - %(message)s')

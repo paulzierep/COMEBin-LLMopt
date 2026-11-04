@@ -1,21 +1,21 @@
-# ComeBot
+# COMEBin-LLMopt
 
-**ComeBot** bins metagenomic contigs with contrastive multi-view representation
+**COMEBin-LLMopt** bins metagenomic contigs with contrastive multi-view representation
 learning. It is a faster, more robust version of
 [COMEBin](https://github.com/ziyewang/COMEBin) v1.1.0, improved with the help of
 an LLM coding agent and benchmarked against the original on fixed datasets.
 
-ComeBot is not an official COMEBin release, and the COMEBin authors have not
+COMEBin-LLMopt is not an official COMEBin release, and the COMEBin authors have not
 reviewed it. It is distributed under GPL-3.0 like COMEBin; see
 [NOTICE.md](NOTICE.md) for the modification notice and
-[CHANGELOG.md](CHANGELOG.md) for every change. If you use ComeBot, please cite
+[CHANGELOG.md](CHANGELOG.md) for every change. If you use COMEBin-LLMopt, please cite
 the COMEBin paper ([Citation](#Citation)).
 
 ```sh
-comebot -a contigs.fasta -p bam_dir/ -o out/ -t 32
+comebin-llmopt -a contigs.fasta -p bam_dir/ -o out/ -t 32
 ```
 
-`comebot` takes the same options as COMEBin's `run_comebin.sh`, which still
+`comebin-llmopt` takes the same options as COMEBin's `run_comebin.sh`, which still
 works. Results are in `out/comebin_res/` as in COMEBin.
 
 ## What is different from COMEBin v1.1.0
@@ -44,8 +44,8 @@ instead of 38.5 min. Progress and open work are in [PROGRESS.md](PROGRESS.md).
 ## Original COMEBin documentation
 
 The sections below are from COMEBin v1.1.0. The installation steps install
-COMEBin; for ComeBot, clone this repository instead and use `COMEBin/comebot`.
-Contact the COMEBin authors only about COMEBin itself; report ComeBot problems
+COMEBin; for COMEBin-LLMopt, clone this repository instead and use `COMEBin/comebin-llmopt`.
+Contact the COMEBin authors only about COMEBin itself; report COMEBin-LLMopt problems
 at <https://github.com/paulzierep/COMEBin/issues>.
 
 - [Overview](#overview)
