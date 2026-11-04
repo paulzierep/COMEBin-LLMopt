@@ -4,7 +4,7 @@
 # COMEBin-LLMopt: run the binning pipeline after obtaining the bam files.
 # COMEBin-LLMopt is a modified version of COMEBin v1.1.0 by Ziye Wang (zwang17@fudan.edu.cn),
 # changed by Paul Zierep since 2026-09 (see NOTICE.md and CHANGELOG.md).
-# Report problems with COMEBin-LLMopt at https://github.com/paulzierep/COMEBin/issues,
+# Report problems with COMEBin-LLMopt at https://github.com/paulzierep/COMEBin-LLMopt/issues,
 # not to the COMEBin authors.
 ##############################################################################################################################################################
 VERSION="0.1.0"

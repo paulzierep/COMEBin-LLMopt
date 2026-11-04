@@ -46,7 +46,7 @@ instead of 38.5 min. Progress and open work are in [PROGRESS.md](PROGRESS.md).
 The sections below are from COMEBin v1.1.0. The installation steps install
 COMEBin; for COMEBin-LLMopt, clone this repository instead and use `COMEBin/comebin-llmopt`.
 Contact the COMEBin authors only about COMEBin itself; report COMEBin-LLMopt problems
-at <https://github.com/paulzierep/COMEBin/issues>.
+at <https://github.com/paulzierep/COMEBin-LLMopt/issues>.
 
 - [Overview](#overview)
 - [System Requirements](#requirements)

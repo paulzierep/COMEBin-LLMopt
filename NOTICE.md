@@ -11,7 +11,7 @@ License v3.0. COMEBin-LLMopt is distributed under the same license; see `LICENSE
   datasets before release.
 - **Not an official COMEBin release:** the COMEBin authors have not reviewed or
   endorsed COMEBin-LLMopt. Please report problems with COMEBin-LLMopt at
-  <https://github.com/paulzierep/COMEBin/issues>, not to the COMEBin authors.
+  <https://github.com/paulzierep/COMEBin-LLMopt/issues>, not to the COMEBin authors.
 
 If you use COMEBin-LLMopt, please cite the original method:
 
