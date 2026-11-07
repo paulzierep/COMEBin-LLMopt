@@ -14,7 +14,7 @@ Based on COMEBin v1.1.0.
 - **Training loss:** InfoNCE takes one log-sum-exp over the negatives per anchor instead of building the full logits matrix. The loss step is 4.5× faster and peaks 1.8 GB lower; loss, gradients and accuracy are unchanged.
 - **Training batches:** batches are gathered from the in-memory views; no DataLoader worker processes are forked each epoch. Seeded batches are identical to v1.1.0.
 - **Coverage features:** bedGraph statistics are vectorised, 1.7× faster.
-- **Dropout:** masks are drawn with `rand_like >= p` instead of `bernoulli_` (same distribution, ~1.4× faster mask).
+- **Dropout:** on CPU, masks come from random bytes (7 per 64-bit draw) instead of `bernoulli_`: 4.5× faster masks, 17% faster training step at 32 threads. The drop rate is rounded to 1/256 (p = 0.2 drops 0.199) and the output is scaled by the exact keep rate.
 - **Final-bin selection:** the archaeal CheckM pass reuses the bacterial pass's gene calls.
 - **End to end:** BATS medium (3,000 contigs, 32 CPU threads) takes 19.5 min instead of 38.5 min with near-identical bins (ARI 0.936; the difference is floating-point rounding).
 
