@@ -17,6 +17,7 @@ Based on COMEBin v1.1.0.
 - **Dropout:** on CPU, masks come from random bytes (7 per 64-bit draw) instead of `bernoulli_`: 4.5× faster masks, 17% faster training step at 32 threads. The drop rate is rounded to 1/256 (p = 0.2 drops 0.199) and the output is scaled by the exact keep rate.
 - **Final-bin selection:** the archaeal CheckM pass reuses the bacterial pass's gene calls.
 - **End to end:** BATS medium (3,000 contigs, 32 CPU threads) takes 19.5 min instead of 38.5 min with near-identical bins (ARI 0.936; the difference is floating-point rounding).
+  With the byte-mask dropout, CAMI II human takes 32–34 min instead of 38–39 min (seeds 42 and 7) and BATS medium about 14 min. Bin quality is unchanged within seed noise: AMBER genomes >90 % complete / <5 % contaminated 20–21 vs 21 and F1 (bp) 0.678/0.737 vs 0.678/0.750.
 
 ### Added
 - `-L INT`: bin only contigs of at least INT bp (default 1001, no extra filter); shorter contigs stay unbinned. For large assemblies such as CAMI III GSA, `-L 2500` cuts ~98k contigs to ~30k. The automatic temperature then follows the N50 of the filtered contigs.
