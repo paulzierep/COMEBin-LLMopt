@@ -21,6 +21,26 @@ If you use COMEBin-LLMopt, please credit **both** the COMEBin method and this ve
 
 Please also give the version you used (`comebin-llmopt -V`).
 
+## How COMEBin-LLMopt was made
+
+COMEBin-LLMopt is an experiment in how well an AI coding agent can improve an established,
+high-quality scientific tool. We chose COMEBin because it is one of the best metagenomic
+binners available.
+
+- **Agent:** an autonomous AI coding agent (Claude Code) runs on a de.NBI Cloud VM
+  (32 AMD EPYC cores, CPU only). Paul Zierep sets the goals and steers it through GitHub issues.
+- **Loop:** the agent works in a fixed loop:
+  1. Profile the slowest stage.
+  2. Change it on the `dev` branch and add tests (`tests/`).
+  3. Run the whole pipeline against COMEBin v1.1.0 on fixed datasets: BATS medium, CAMI II
+     human and CAMI III toy, scored with CheckM2 and, against the gold standards, with AMBER.
+  4. Use at least two seeds, because seed noise is about 1–2 genomes.
+- **Rule:** a change is merged into `master` only if the benchmark shows it is as good or
+  better. Changes that did not help, such as a lower loss temperature, were rejected, and
+  that is recorded too.
+- **One job at a time:** runs never overlap, so wall times are comparable.
+- **Record:** every change, with its measured effect, is listed in [CHANGELOG.md](CHANGELOG.md).
+
 ## What is different from COMEBin v1.1.0
 
 The method and default parameters are the same. Bins are the same within seed noise,
@@ -128,6 +148,13 @@ python -m pytest tests
 
 Report COMEBin-LLMopt problems at <https://github.com/paulzierep/COMEBin-LLMopt/issues>.
 Contact the COMEBin authors only about COMEBin itself.
+
+## Acknowledgements
+
+COMEBin was developed by Ziye Wang, Ronghui You, Haitao Han, Wei Liu, Fengzhu Sun and
+Shanfeng Zhu (see [Citation](#citation)).
+
+This work was supported by the de.NBI Cloud within the German Network for Bioinformatics Infrastructure (de.NBI) and ELIXIR-DE (Forschungszentrum Jülich and W-de.NBI-001, W-de.NBI-004, W-de.NBI-008, W-de.NBI-010, W-de.NBI-013, W-de.NBI-014, W-de.NBI-016, W-de.NBI-022).
 
 ## References
 
