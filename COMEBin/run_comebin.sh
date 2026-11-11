@@ -7,7 +7,7 @@
 # Report problems with COMEBin-LLMopt at https://github.com/paulzierep/COMEBin-LLMopt/issues,
 # not to the COMEBin authors.
 ##############################################################################################################################################################
-VERSION="0.1.0"
+VERSION="1.0.0"
 BASED_ON="COMEBin 1.1.0"
 
 help_message () {

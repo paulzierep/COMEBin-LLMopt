@@ -1,9 +1,9 @@
 # Changelog
 
 COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
-0.1.0 lists the changes relative to COMEBin v1.1.0.
+1.0.0 lists the changes relative to COMEBin v1.1.0.
 
-## 0.1.0 (unreleased)
+## 1.0.0 (2026-11-11)
 
 Based on COMEBin v1.1.0.
 
