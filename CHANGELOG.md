@@ -10,7 +10,7 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 
 ## 1.0.1 (2026-11-11)
 
-Code of the CAMI III short-read GSA run (1836418). Same model, loss, clustering and bin selection as 1.0.0; only the dropout masks are drawn differently.
+Same model, loss, clustering and bin selection as 1.0.0; only the dropout masks are drawn differently.
 
 ### Faster
 - **Dropout:** on CPU, masks come from random bytes (7 per 64-bit draw) instead of `rand_like >= p`: 4.5× faster masks, 17% faster training step at 32 threads. The drop rate is rounded to 1/256 (p = 0.2 drops 0.199) and the output is scaled by the exact keep rate. With the same seed, results differ from 1.0.0 as with a different seed.
