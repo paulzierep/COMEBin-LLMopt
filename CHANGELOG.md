@@ -14,7 +14,7 @@ Based on COMEBin v1.1.0.
 - **Training loss:** InfoNCE takes one log-sum-exp over the negatives per anchor instead of building the full logits matrix. The loss step is 4.5× faster and peaks 1.8 GB lower; loss, gradients and accuracy are unchanged.
 - **Training batches:** batches are gathered from the in-memory views; no DataLoader worker processes are forked each epoch. Seeded batches are identical to v1.1.0.
 - **Coverage features:** bedGraph statistics are vectorised, 1.7× faster.
-- **Dropout:** on CPU, masks come from random bytes (7 per 64-bit draw) instead of `bernoulli_`: 4.5× faster masks, 17% faster training step at 32 threads. The drop rate is rounded to 1/256 (p = 0.2 drops 0.199) and the output is scaled by the exact keep rate.
+- **Dropout:** on CPU, masks come from random bytes (7 per 64-bit draw) instead of `bernoulli_`: 4.5× faster masks, 17% faster training step at 32 threads. The drop rate is rounded to 1/256 (p = 0.2 drops 0.199) and the output is scaled by the exact keep rate. The scale is folded into the mask, so dropout costs one multiply instead of two in the forward and backward pass (about 3% faster step; outputs and gradients are bit-identical).
 - **Final-bin selection:** the archaeal CheckM pass reuses the bacterial pass's gene calls.
 - **End to end:** BATS medium (3,000 contigs, 32 CPU threads) takes 19.5 min instead of 38.5 min with near-identical bins (ARI 0.936; the difference is floating-point rounding).
   With the byte-mask dropout, CAMI II human takes 32–34 min instead of 38–39 min (seeds 42 and 7) and BATS medium about 14 min. Bin quality is unchanged within seed noise: AMBER genomes >90 % complete / <5 % contaminated 20–21 vs 21 and F1 (bp) 0.678/0.737 vs 0.678/0.750.

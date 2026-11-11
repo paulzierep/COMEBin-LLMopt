@@ -68,3 +68,23 @@ def test_mask_is_not_periodic():
     for lag in (1, 7, 8):
         corr = torch.corrcoef(torch.stack([keep[:-lag], keep[lag:]]))[0, 1]
         assert abs(corr.item()) < 0.01
+
+
+def test_matches_two_multiply_form():
+    """The pre-scaled mask gives bit-identical outputs and gradients to x * keep * scale."""
+    from models.fast_dropout import _byte_keep_mask
+    p = 0.2
+    keep_rate = 1.0 - round(p * 256) / 256
+    x = torch.randn(64, 513)
+    torch.manual_seed(3)
+    keep = _byte_keep_mask(x, p)
+    x1 = x.clone().requires_grad_()
+    ref = x1 * keep * (1.0 / keep_rate)
+    ref.sum().backward()
+    torch.manual_seed(3)
+    layer = FastDropout(p).train()
+    x2 = x.clone().requires_grad_()
+    out = layer(x2)
+    out.sum().backward()
+    assert torch.equal(out, ref)
+    assert torch.equal(x2.grad, x1.grad)

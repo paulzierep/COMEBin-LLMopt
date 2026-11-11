@@ -43,7 +43,9 @@ class FastDropout(nn.Module):
         else:
             keep = torch.rand_like(x) >= self.p
             keep_rate = 1.0 - self.p
-        return x * keep * (1.0 / keep_rate)
+        # One multiply with a pre-scaled mask: same values as x * keep * scale
+        # (keep is 0 or 1), but one elementwise pass less in forward and backward.
+        return x * keep.to(x.dtype).mul_(1.0 / keep_rate)
 
     def extra_repr(self):
         return f'p={self.p}'
