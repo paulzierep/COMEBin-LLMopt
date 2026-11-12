@@ -32,8 +32,8 @@ binners available.
 - **Loop:** the agent works in a fixed loop:
   1. Profile the slowest stage.
   2. Change it on the `dev` branch and add tests (`tests/`).
-  3. Run the whole pipeline against COMEBin v1.1.0 on fixed datasets: BATS medium, CAMI II
-     human and CAMI III toy, scored with CheckM2 and, against the gold standards, with AMBER.
+  3. Run the whole pipeline against COMEBin v1.1.0 on fixed benchmark datasets (for example
+     BATS medium and CAMI II human), scored with CheckM2 and, against gold standards, with AMBER.
   4. Use at least two seeds, because seed noise is about 1–2 genomes.
 - **Rule:** a change is merged into `master` only if the benchmark shows it is as good or
   better. Changes that did not help, such as a lower loss temperature, were rejected, and
@@ -60,6 +60,7 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - `-L INT`: bin only contigs of at least INT bp (default 1001). For large assemblies, `-L 2500` cuts run time several-fold.
 - `-s INT`: random seed for reproducible runs.
 - `-V`: print the version.
+- `-S checkm2` and `-D PATH`: choose the final bins across all Leiden partitions with CheckM2 (see below).
 - If `-l` (temperature) is not given, it is chosen from the N50: 0.07 above 10 kb, otherwise 0.15.
 
 **Robustness**
@@ -68,6 +69,30 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - CheckM failures now stop the run. Previously their exit codes were ignored.
 - An interrupted run no longer reuses incomplete intermediate files.
 - The log shows the wall time of every stage.
+
+## Better bins: `-S checkm2` (new, opt-in)
+
+COMEBin clusters the contig embeddings with Leiden about 120 times (different resolutions and
+bandwidths) and keeps the one partition with the best marker-gene score. Often a genome is binned
+well in one partition and badly in the chosen one. With `-S checkm2`, COMEBin-LLMopt instead picks
+the best bins from all partitions:
+
+1. The assembly is annotated once (Prodigal in parallel, plus CheckM2's DIAMOND search).
+2. Every distinct candidate bin gets CheckM2 completeness and contamination. CheckM2's own models
+   run on per-bin sums of per-contig features, which matches `checkm2 predict` at r ≥ 0.995.
+3. Bins are picked greedily by completeness − 4 × contamination; the contigs of a picked bin are
+   removed from all other candidates, which are then rescored.
+4. Leftover contigs keep their bins from the partition COMEBin chose, so viruses and plasmids that
+   CheckM2 cannot score are not lost.
+
+On CAMI II human this recovers 24–25 gold-standard genomes at > 90 % completeness and < 5 %
+contamination instead of 20–21, for about 11 % more run time (36 instead of 32 min).
+
+![Gold-standard genomes recovered on CAMI II human](benchmark/figures/quality_checkm2.png)
+
+`-S checkm2` needs [CheckM2](https://github.com/chklovski/CheckM2) and its database (`-D`, or
+`checkm2 database --download`). Without CheckM2 the run falls back to the default selection
+and logs a warning.
 
 ## How COMEBin works
 
@@ -101,6 +126,9 @@ python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl
 
 Then run `COMEBin/comebin-llmopt` (or `bash COMEBin/run_comebin.sh`, which takes the same options).
 
+For `-S checkm2`, also install CheckM2 (for example `conda create -n checkm2 -c conda-forge -c bioconda checkm2`)
+and put its `bin/` on the `PATH`; COMEBin-LLMopt runs the selection with CheckM2's own Python.
+
 A Galaxy tool is under review in [tools-iuc](https://github.com/galaxyproject/tools-iuc/pull/8903).
 
 ## Run
@@ -111,6 +139,7 @@ Inputs: an assembly (FASTA) and one sorted BAM file per sample with the reads ma
 comebin-llmopt -a contigs.fasta -p bam_dir/ -o out/ -t 32 -d cpu -s 42
 ```
 
+Add `-S checkm2 -D /path/to/uniref100.KO.1.dmnd` for the CheckM2 bin selection (see above).
 Use `-d cuda` to train on a GPU. `comebin-llmopt -h` lists all options. Results:
 
 - `out/comebin_res/comebin_res_bins/`: one FASTA file per bin. Bins under 200 kb are not reported.
