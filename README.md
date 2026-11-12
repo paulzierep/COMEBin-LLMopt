@@ -16,7 +16,7 @@ If you use COMEBin-LLMopt, please credit **both** the COMEBin method and this ve
 1. **COMEBin:** Wang, Z., You, R., Han, H. et al. Effective binning of metagenomic contigs
    using contrastive multi-view representation learning. *Nat Commun* 15, 585 (2024).
    <https://doi.org/10.1038/s41467-023-44290-z>
-2. **COMEBin-LLMopt:** Zierep, P. COMEBin-LLMopt: an LLM-optimized, faster COMEBin (version 1.0.1).
+2. **COMEBin-LLMopt:** Zierep, P. COMEBin-LLMopt: an LLM-optimized, faster COMEBin (version 1.0.2).
    <https://github.com/paulzierep/COMEBin-LLMopt>
 
 Please also give the version you used (`comebin-llmopt -V`).

@@ -3,7 +3,12 @@
 COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
 1.0.0 lists the changes relative to COMEBin v1.1.0.
 
-## Unreleased
+## 1.0.2 (2026-11-12)
+
+### Fixes
+- **No more empty output on small assemblies.** COMEBin picks the Leiden partition with the best marker-gene score, but counts bins of any size, while only bins of at least 200 kb are reported. On small assemblies the best-scoring partition could hold only small bins, so the run finished with no bins at all. Now, only when that partition would report no bin, the choice is made among the bins that are reported, with ties going to the partition that reports the most sequence.
+  - On larger data the choice is the same as before (COMEBin's rule decides whenever its partition reports a bin).
+  - Test assembly of 300 contigs (CAMI II human subset, 10 % of the reads, 2 threads): seeds 7 / 13 / 1 gave 0 / 0 / 0 bins before, now 6 / 8 / 8; seed 42 gives 6 (about 7 min each).
 
 ### Better bins
 - **`-S checkm2`: final bins chosen across all Leiden partitions with CheckM2 estimates** (opt-in; needs CheckM2 and its database, `-D`).
