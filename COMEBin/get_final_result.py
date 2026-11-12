@@ -153,31 +153,36 @@ def _load_result_labels(result_format, path, contig_ids):
 
 
 def select_best_result(result_dir, result_names, result_format, contig_ids, markers, contig_lengths=None):
-    """Pick the partition with the most good bins. With contig_lengths, bins below the minimum final
-    bin size are not counted, since they are never reported, and ties go to the partition that
-    reports the most sequence."""
+    """Pick the partition with the most good bins (COMEBin's rule).
+
+    With contig_lengths there is a fallback for small assemblies: if that partition reports no bin of
+    at least the minimum final size, choose instead by the bins that are reported (only those count)
+    and break ties by the sequence they hold. On larger data the first rule decides, as in COMEBin."""
     marker_indexes, marker_names = marker_contig_indexes(contig_ids, markers)
     all_stats = {}
-    best_name = None
-    best_key = None
-    best_qualities = None
+    best = None       # (key, name, qualities, reported_bp) by COMEBin's rule
+    fallback = None   # (key, name, qualities) by reported bins only
     for result_name in sorted(result_names):
         labels = _load_result_labels(result_format, Path(result_dir) / result_name, contig_ids)
-        keep = None if contig_lengths is None else retained_final_labels(labels, contig_lengths)
-        stats, qualities = score_marker_labels(labels, marker_indexes, marker_names, markers, keep)
+        stats, qualities = score_marker_labels(labels, marker_indexes, marker_names, markers)
         all_stats[result_name] = stats
-        # Ties (e.g. small assemblies where no bin reaches 50 % marker completeness) go to the
-        # partition that reports the most sequence in bins of at least the minimum size.
-        reported_bp = 0 if keep is None else int(np.asarray(contig_lengths)[np.isin(labels, list(keep))].sum())
-        comparison_key = (stats['sum'], stats['sum_cont5'], reported_bp)
-        if best_key is None or comparison_key > best_key:
-            best_name = result_name
-            best_key = comparison_key
-            best_qualities = qualities
+        key = (stats['sum'], stats['sum_cont5'])
+        reported_bp = None
+        if contig_lengths is not None:
+            keep = retained_final_labels(labels, contig_lengths)
+            reported_bp = int(np.asarray(contig_lengths)[np.isin(labels, list(keep))].sum())
+            k_stats, k_qualities = score_marker_labels(labels, marker_indexes, marker_names, markers, keep)
+            k_key = (k_stats['sum'], k_stats['sum_cont5'], reported_bp)
+            if fallback is None or k_key > fallback[0]:
+                fallback = (k_key, result_name, k_qualities)
+        if best is None or key > best[0]:
+            best = (key, result_name, qualities, reported_bp)
         del labels
-    if best_name is None:
+    if best is None:
         raise RuntimeError('No valid Leiden result was available for final selection.')
-    return all_stats, best_name, best_qualities
+    if best[3] == 0 and fallback is not None and fallback[0][2] > 0:
+        return all_stats, fallback[1], fallback[2]
+    return all_stats, best[1], best[2]
 
 
 def _ordered_labels(labels):
