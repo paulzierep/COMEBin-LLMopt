@@ -33,6 +33,9 @@ help_message () {
 	echo "  -c INT          embedding size for coverage network (default=2048)"
 	echo "  -b INT          batch size for training process (default=1024)"
 	echo "  -L INT          only bin contigs of at least INT bp; shorter ones stay unbinned (default=1001, i.e. no extra filter)"
+	echo "  -S STR          final-bin selection: partition (best Leiden partition by marker score, as COMEBin) or"
+	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; needs CheckM2) (default=partition)"
+	echo "  -D STR          CheckM2 DIAMOND database for -S checkm2 (default=CheckM2's configured database)"
 	echo "";}
 
 stage_start=${SECONDS}
@@ -72,7 +75,7 @@ max_edges=100
 hmm_evalue=1e-5
 min_contig_length=
 
-while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b:L: OPT; do
+while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -108,6 +111,10 @@ while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b:L: OPT; do
     ;;
   b) batch_size=${OPTARG}
     ;;
+  S) final_selection=${OPTARG}
+    ;;
+  D) checkm2_db=$(realpath -e -- "${OPTARG}") || exit 1
+    ;;
   L) min_contig_length=${OPTARG}
     ;;
   \?)
@@ -122,6 +129,15 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 seed_options=()
+final_selection=${final_selection:-partition}
+case "${final_selection}" in
+  partition|checkm2) ;;
+  *) echo "Unknown -S value: ${final_selection} (use partition or checkm2)" >&2; exit 1 ;;
+esac
+selection_options=(--final_selection "${final_selection}")
+if [ -n "${checkm2_db:-}" ]; then
+    selection_options+=(--checkm2_db "${checkm2_db}")
+fi
 if [ -n "${random_seed}" ]; then
     export PYTHONHASHSEED="${random_seed}"
     export CUBLAS_WORKSPACE_CONFIG="${CUBLAS_WORKSPACE_CONFIG:-:4096:8}"
@@ -265,7 +281,7 @@ python "${main_py}" get_result --contig_file "${contig_file}" \
 --output_path "${output_dir}/comebin_res" \
 --emb_file "${emb_file}" \
 --seed_file "${seed_file}" --num_threads "${num_threads}" --max_edges "${max_edges}" \
---hmm_evalue "${hmm_evalue}" "${seed_options[@]}"
+--hmm_evalue "${hmm_evalue}" "${seed_options[@]}" "${selection_options[@]}"
 result_status=$?
 
 if [[ ${result_status} -ne 0 ]]; then

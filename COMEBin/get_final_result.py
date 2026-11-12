@@ -1,5 +1,7 @@
 import os
 import shutil
+import subprocess
+import sys
 from collections import defaultdict
 from pathlib import Path
 
@@ -239,6 +241,63 @@ def _profile_marker_tables(logger, args, seed_num, num_threads, result_format, r
             method_dir / 'checkm_ar/marker_gene_table.tsv')
 
 
+def checkm2_python(explicit=None):
+    """Interpreter that can import CheckM2: --checkm2_python, this Python, or the Python next to
+    (or named in the shebang of) the checkm2 executable on PATH."""
+    if explicit:
+        return [explicit]
+    import importlib.util
+    if importlib.util.find_spec('checkm2') is not None:
+        return [sys.executable]
+    exe = shutil.which('checkm2')
+    if exe is None:
+        return None
+    candidates = [Path(exe).resolve().parent / 'python', Path(exe).parent / 'python']
+    with open(exe, 'rb') as fh:
+        first = fh.readline().decode(errors='replace').strip()
+    if first.startswith('#!'):
+        interp = first[2:].split()
+        if interp and Path(interp[0]).name == 'env':
+            interp = interp[1:]
+        if interp and Path(interp[0]).name.startswith('python'):
+            candidates.insert(0, Path(shutil.which(interp[0]) or interp[0]))
+    for python in candidates:
+        if python.exists() and subprocess.run([str(python), '-c', 'import checkm2'],
+                                              capture_output=True).returncode == 0:
+            return [str(python)]
+    return None
+
+
+def checkm2_bin_selection(logger, args, result_dir, result_names, contig_ids, base_name, num_threads):
+    """Run checkm2_select.py; returns per-contig labels, or None to keep the base partition."""
+    python = checkm2_python(getattr(args, 'checkm2_python', None))
+    if python is None:
+        logger.warning('Final-bin selection "checkm2" needs CheckM2 (not found); '
+                       'keeping the partition chosen by marker score.')
+        return None
+    work = Path(args.output_path) / 'checkm2_select'
+    work.mkdir(parents=True, exist_ok=True)
+    (work / 'contig_ids.txt').write_text(''.join(f'{c}\n' for c in contig_ids))
+    (work / 'results.txt').write_text(''.join(f'{result_dir / n}\n' for n in result_names))
+    out = work / 'final.labels.npy'
+    cmd = python + [str(Path(__file__).with_name('checkm2_select.py')),
+                    '--contigs', str(args.contig_file), '--ids', str(work / 'contig_ids.txt'),
+                    '--results', str(work / 'results.txt'), '--base', str(result_dir / base_name),
+                    '--out', str(out), '--cache', str(work / 'annotation'),
+                    '--threads', str(num_threads), '--weight', str(args.selection_weight)]
+    if getattr(args, 'checkm2_db', None):
+        cmd += ['--db', str(args.checkm2_db)]
+    logger.info('CheckM2 bin selection: %s', ' '.join(cmd))
+    with open(work / 'checkm2_select.log', 'w') as log:
+        status = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
+    if status != 0:
+        raise RuntimeError(f'CheckM2 bin selection failed (exit {status}); see {work / "checkm2_select.log"}')
+    labels = np.load(out).astype(np.uint32, copy=False)
+    if len(labels) != len(contig_ids):
+        raise RuntimeError(f'CheckM2 bin selection returned {len(labels)} labels for {len(contig_ids)} contigs.')
+    return labels
+
+
 def run_get_final_result(logger, args, seed_num: int, num_threads: int = 40,
                          res_name=None, ignore_kmeans_res: bool = True):
     logger.info("Seed_num:\t%s", seed_num)
@@ -272,8 +331,18 @@ def run_get_final_result(logger, args, seed_num: int, num_threads: int = 40,
     best_labels = _load_result_labels(result_format, result_dir / best_method, contig_ids)
     save_high_quality_assignments(
         result_dir, best_method, contig_ids, best_labels, best_qualities)
-    keep_labels = retained_final_labels(best_labels, contig_lengths)
     logger.info('Final result:\t%s', result_dir / best_method)
+    if getattr(args, 'final_selection', 'partition') == 'checkm2':
+        if result_format != 'binary-labels':
+            logger.warning('CheckM2 bin selection needs binary Leiden labels; keeping the partition.')
+        else:
+            selected = checkm2_bin_selection(
+                logger, args, result_dir, result_names, contig_ids, best_method, num_threads)
+            if selected is not None:
+                best_labels = selected
+                logger.info('Final bins:\tCheckM2 bin selection across %d partitions (base partition %s).',
+                            len(result_names), best_method)
+    keep_labels = retained_final_labels(best_labels, contig_lengths)
     publish_final_result(
         logger, args, contig_ids, contig_lengths, best_labels, keep_labels)
     del best_labels

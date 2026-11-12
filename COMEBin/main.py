@@ -243,6 +243,13 @@ def arguments():
     get_result_subparsers.add_argument('--seed', default=DEFAULT_RANDOM_SEED, type=int,
                                        help='optional random seed for reproducible runs.')
 
+    get_result_subparsers.add_argument('--final_selection', default='partition', choices=['partition', 'checkm2'],
+                                       help="partition: keep the Leiden partition with the best marker score (COMEBin). "
+                                            "checkm2: pick bins across all partitions with CheckM2 estimates.")
+    get_result_subparsers.add_argument('--selection_weight', default=4.0, type=float,
+                                       help="checkm2 selection score: completeness - weight * contamination (default 4).")
+    get_result_subparsers.add_argument('--checkm2_db', type=str, help="CheckM2 DIAMOND database (default: CheckM2 setting).")
+    get_result_subparsers.add_argument('--checkm2_python', type=str, help="Python with CheckM2 (default: found via checkm2 on PATH).")
     get_result_subparsers.add_argument('--bac_mg_table', type=str, help=("bac_mg_table (bacteria marker gene information)"))
     get_result_subparsers.add_argument('--ar_mg_table', type=str, help=("ar_mg_table (archea marker gene information)"))
 
