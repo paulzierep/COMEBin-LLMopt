@@ -59,3 +59,23 @@ def test_final_labels_fill_from_base_partition():
     assert labels[1] != labels[3]               # b and d keep separate base bins
     assert len({labels[1], labels[3], labels[4]}) == 3
     assert min(labels[[1, 3, 4]]) >= 1
+
+
+def test_low_completeness_bins_are_not_rescored():
+    truth = {f'a{i}': 'A' for i in range(4)} | {f'b{i}': 'B' for i in range(10)}
+    lengths = {c: 100 for c in truth}
+    q = fake_quality(truth)
+    scored = []
+
+    def counting(bins):
+        scored.extend(frozenset(b) for b in bins)
+        return q(bins)
+    # {a0..a3, b0}: A complete, touched when A is picked; {b0, b1}: 20 % of B, pruned at once
+    bins = [{f'a{i}' for i in range(4)}, {'a0', 'a1', 'a2', 'a3', 'b0'}, {'b0', 'b1'}]
+    chosen, _ = greedy_select(bins, lengths, counting, weight=4, min_bin_bp=0, min_comp=50, prune_margin=5)
+    assert chosen == [{f'a{i}' for i in range(4)}]
+    assert scored.count(frozenset({'b0', 'b1'})) == 1
+    assert frozenset({'b0'}) in scored  # the A+b0 bin minus A is rescored once
+    chosen_all, _ = greedy_select([set(b) for b in [{f'a{i}' for i in range(4)}, {'b0', 'b1'}]], lengths, q,
+                                  weight=4, min_bin_bp=0, min_comp=50, prune_margin=None)
+    assert chosen_all == chosen

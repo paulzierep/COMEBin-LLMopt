@@ -49,12 +49,14 @@ def read_fasta(path):
         yield name, ''.join(seq)
 
 
-def greedy_select(bins, lengths, quality_many, weight=4.0, min_bin_bp=200000, min_comp=50.0):
+def greedy_select(bins, lengths, quality_many, weight=4.0, min_bin_bp=200000, min_comp=50.0, prune_margin=5.0):
     """Pick non-overlapping bins from overlapping candidates.
 
     bins: list of sets of contig IDs (modified in place); lengths: dict contig -> bp;
     quality_many: function(list of sets) -> list of (completeness, contamination) in percent.
     Returns the selected bins (list of sets) and the set of used contigs.
+    Removing contigs from a bin does not raise its completeness, so a bin scored below
+    min_comp - prune_margin is dropped and never rescored (prune_margin=None keeps all).
     """
     member = defaultdict(list)
     for i, b in enumerate(bins):
@@ -65,6 +67,9 @@ def greedy_select(bins, lengths, quality_many, weight=4.0, min_bin_bp=200000, mi
 
     def push(idx):
         for i, (comp, cont) in zip(idx, quality_many([bins[i] for i in idx])):
+            if prune_margin is not None and comp < min_comp - prune_margin:
+                bins[i] = set()
+                continue
             size = sum(lengths[c] for c in bins[i])
             heapq.heappush(heap, (-(comp - weight * cont), -size, i, comp, version[i]))
 
@@ -203,6 +208,7 @@ class Scorer:
     """CheckM2 completeness / contamination for many bins (CheckM2 'auto' model choice)."""
 
     def __init__(self, annotation, threads):
+        self.n_scored = 0
         import pandas as pd
         from checkm2 import keggData, modelPostprocessing, modelProcessing
         self.pd, self.a = pd, annotation
@@ -229,6 +235,7 @@ class Scorer:
         return np.hstack([meta, feats.values.astype(float)])
 
     def __call__(self, bins, chunk=500):
+        self.n_scored += len(bins)
         out = []
         for s in range(0, len(bins), chunk):
             X = self._vectors(bins[s:s + chunk])
@@ -251,6 +258,8 @@ def main():
     p.add_argument('--weight', type=float, default=4.0)
     p.add_argument('--min_bin_bp', type=int, default=200000)
     p.add_argument('--min_comp', type=float, default=50.0)
+    p.add_argument('--prune_margin', type=float, default=5.0,
+                   help='drop bins scored below min_comp minus this (negative: never drop)')
     p.add_argument('--db', help='CheckM2 DIAMOND database (default: CheckM2 configuration)')
     a = p.parse_args()
     # prodigal and diamond come with CheckM2: use the tools of this interpreter's environment first.
@@ -281,13 +290,14 @@ def main():
                 seen.add(key)
                 bins.append(set(g))
     log.info('Candidate bins (distinct, >= %d bp): %d.', a.min_bin_bp, len(bins))
-    chosen, used = greedy_select(bins, lengths, scorer, a.weight, a.min_bin_bp, a.min_comp)
+    chosen, used = greedy_select(bins, lengths, scorer, a.weight, a.min_bin_bp, a.min_comp,
+                                 a.prune_margin if a.prune_margin >= 0 else None)
     labels = final_labels(ids, chosen, used, np.load(a.base))
     tmp = Path(a.out).with_suffix('.tmp.npy')
     np.save(tmp, labels.astype(np.uint32))
     tmp.rename(a.out)
-    log.info('Selected %d bins with CheckM2 (%d contigs); other contigs keep their base-partition bins.',
-             len(chosen), len(used))
+    log.info('Selected %d bins with CheckM2 (%d contigs, %d bin scorings); other contigs keep their '
+             'base-partition bins.', len(chosen), len(used), scorer.n_scored)
 
 
 if __name__ == '__main__':
