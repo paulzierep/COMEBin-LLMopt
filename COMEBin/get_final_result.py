@@ -84,9 +84,12 @@ def marker_contig_indexes(contig_ids, markers):
     return np.asarray(indexes, dtype=np.int64), tuple(names)
 
 
-def score_marker_labels(labels, marker_indexes, marker_names, markers):
+def score_marker_labels(labels, marker_indexes, marker_names, markers, keep_labels=None):
+    """Marker quality of each bin; with keep_labels, only those bins (the ones that will be reported) count."""
     marker_bins = defaultdict(list)
     for contig_name, label in zip(marker_names, labels[marker_indexes]):
+        if keep_labels is not None and int(label) not in keep_labels:
+            continue
         marker_bins[int(label)].append(contig_name)
     stats = _empty_stats()
     qualities = {}
@@ -149,7 +152,9 @@ def _load_result_labels(result_format, path, contig_ids):
     return labels
 
 
-def select_best_result(result_dir, result_names, result_format, contig_ids, markers):
+def select_best_result(result_dir, result_names, result_format, contig_ids, markers, contig_lengths=None):
+    """Pick the partition with the most good bins. With contig_lengths, bins below the minimum final
+    bin size are not counted, since they are never reported."""
     marker_indexes, marker_names = marker_contig_indexes(contig_ids, markers)
     all_stats = {}
     best_name = None
@@ -157,7 +162,8 @@ def select_best_result(result_dir, result_names, result_format, contig_ids, mark
     best_qualities = None
     for result_name in sorted(result_names):
         labels = _load_result_labels(result_format, Path(result_dir) / result_name, contig_ids)
-        stats, qualities = score_marker_labels(labels, marker_indexes, marker_names, markers)
+        keep = None if contig_lengths is None else retained_final_labels(labels, contig_lengths)
+        stats, qualities = score_marker_labels(labels, marker_indexes, marker_names, markers, keep)
         all_stats[result_name] = stats
         comparison_key = (stats['sum'], stats['sum_cont5'])
         if best_key is None or comparison_key > best_key:
@@ -325,7 +331,7 @@ def run_get_final_result(logger, args, seed_num: int, num_threads: int = 40,
     markers = Markers()
     markers.marker_gene_tables(str(bac_mg_table), str(ar_mg_table))
     bin_quality_dict, best_method, best_qualities = select_best_result(
-        result_dir, result_names, result_format, contig_ids, markers)
+        result_dir, result_names, result_format, contig_ids, markers, contig_lengths)
     write_estimated_bin_quality(bin_quality_dict, result_dir / 'estimate_res.txt')
 
     best_labels = _load_result_labels(result_format, result_dir / best_method, contig_ids)
