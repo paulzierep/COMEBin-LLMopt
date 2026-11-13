@@ -246,6 +246,9 @@ def arguments():
     get_result_subparsers.add_argument('--final_selection', default='partition', choices=['partition', 'checkm2'],
                                        help="partition: keep the Leiden partition with the best marker score (COMEBin). "
                                             "checkm2: pick bins across all partitions with CheckM2 estimates.")
+    get_result_subparsers.add_argument('--split_bins', action='store_true',
+                                       help="split final bins whose marker genes show >= 5%% contamination "
+                                            "(k-means on their embeddings).")
     get_result_subparsers.add_argument('--selection_weight', default=4.0, type=float,
                                        help="checkm2 selection score: completeness - weight * contamination (default 4).")
     get_result_subparsers.add_argument('--checkm2_db', type=str, help="CheckM2 DIAMOND database (default: CheckM2 setting).")

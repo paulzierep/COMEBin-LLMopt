@@ -7,6 +7,7 @@ from pathlib import Path
 
 import numpy as np
 
+from bin_split import split_contaminated_bins
 from bin_writer import save_assignments_atomic, write_bins_from_labels
 from cluster_labels import kmeans_bins_name, kmeans_label_name, read_legacy_cluster_labels
 from cluster_labels import validate_cluster_labels
@@ -121,6 +122,21 @@ def _canonical_result_axis(args):
         return axis.contig_ids, axis.contig_lengths
     contig_ids = tuple(contig_id for contig_id, keep in zip(axis.contig_ids, retained) if keep)
     return contig_ids, np.asarray(axis.contig_lengths[retained], dtype=np.int64)
+
+
+def _result_axis_embeddings(args, n_rows):
+    """Embeddings in the order of the canonical result axis, or None for a legacy result."""
+    manifest = Path(args.output_path) / 'embedding_manifest.json'
+    if not (manifest.is_file() or (args.emb_file and Path(args.emb_file).suffix == '.npy')):
+        return None
+    axis_source = args.emb_file if args.emb_file and Path(args.emb_file).suffix == '.npy' else args.output_path
+    axis = load_embedding_axis(axis_source)
+    embeddings = np.load(Path(axis.output_path) / 'embeddings.npy', mmap_mode='r')
+    retained = np.asarray(axis.contig_lengths) >= args.contig_len
+    embeddings = np.asarray(embeddings[retained] if not retained.all() else embeddings)
+    if embeddings.shape[0] != n_rows:
+        raise RuntimeError(f'Embedding rows ({embeddings.shape[0]}) do not match the result axis ({n_rows}).')
+    return embeddings
 
 
 def _legacy_result_axis(first_result, contig_file):
@@ -357,6 +373,17 @@ def run_get_final_result(logger, args, seed_num: int, num_threads: int = 40,
                 best_labels = selected
                 logger.info('Final bins:\tCheckM2 bin selection across %d partitions (base partition %s).',
                             len(result_names), best_method)
+    if getattr(args, 'split_bins', False):
+        embeddings = _result_axis_embeddings(args, len(contig_ids))
+        if embeddings is None:
+            logger.warning('Bin splitting needs the canonical embeddings; skipped.')
+        else:
+            best_labels, n_split = split_contaminated_bins(
+                best_labels, contig_ids, contig_lengths, embeddings, markers,
+                retained_final_labels(best_labels, contig_lengths), MINIMUM_FINAL_BIN_SIZE,
+                seed=getattr(args, 'seed', 0) or 0, logger=logger)
+            logger.info('Final bins:\tsplit %d contaminated bins.', n_split)
+            del embeddings
     keep_labels = retained_final_labels(best_labels, contig_lengths)
     publish_final_result(
         logger, args, contig_ids, contig_lengths, best_labels, keep_labels)

@@ -36,6 +36,7 @@ help_message () {
 	echo "  -S STR          final-bin selection: partition (best Leiden partition by marker score, as COMEBin) or"
 	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; needs CheckM2) (default=partition)"
 	echo "  -D STR          CheckM2 DIAMOND database for -S checkm2 (default=CheckM2's configured database)"
+	echo "  -X              split final bins whose marker genes show >= 5% contamination (default=off)"
 	echo "";}
 
 stage_start=${SECONDS}
@@ -75,7 +76,7 @@ max_edges=100
 hmm_evalue=1e-5
 min_contig_length=
 
-while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
+while getopts hVXa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -117,6 +118,8 @@ while getopts hVa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
     ;;
   L) min_contig_length=${OPTARG}
     ;;
+  X) split_bins=1
+    ;;
   \?)
 #    printf "[Usage] `date '+%F %T'` -i <INPUT_FILE> -o <OUTPUT_DIR> -o <P
 #RODUCT_CODE> -s <SOFTWARE_VERSION> -t <TYPE>\n" >&2
@@ -135,6 +138,9 @@ case "${final_selection}" in
   *) echo "Unknown -S value: ${final_selection} (use partition or checkm2)" >&2; exit 1 ;;
 esac
 selection_options=(--final_selection "${final_selection}")
+if [ -n "${split_bins:-}" ]; then
+    selection_options+=(--split_bins)
+fi
 if [ -n "${checkm2_db:-}" ]; then
     selection_options+=(--checkm2_db "${checkm2_db}")
 fi
