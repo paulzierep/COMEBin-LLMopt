@@ -37,6 +37,7 @@ def test_merged_genomes_are_split():
     labels = np.zeros(16, dtype=np.uint32)  # both genomes in one bin: comp 100, cont 100
     new, n_split = split_contaminated_bins(labels, ids, lengths, emb, markers, {0}, 200_000)
     assert n_split == 1
+    assert new.dtype == np.uint32
     assert len(set(new[:8])) == 1 and len(set(new[8:])) == 1 and new[0] != new[8]
 
 

@@ -26,12 +26,12 @@ def split_contaminated_bins(labels, contig_ids, contig_lengths, embeddings, mark
                             minimum_size, cont_min=DEFAULT_CONT_MIN, penalty=DEFAULT_PENALTY,
                             kmax=DEFAULT_KMAX, seed=0, logger=None):
     """Return (new_labels, n_split). Only bins in keep_labels are considered."""
-    labels = np.asarray(labels).astype(np.int64)
+    labels = np.asarray(labels)
     lengths = np.asarray(contig_lengths, dtype=np.int64)
     emb = np.asarray(embeddings, dtype=np.float32)
     emb = emb / np.maximum(np.linalg.norm(emb, axis=1, keepdims=True), 1e-12)
     marker_ids = set(markers.bac_markers_on_contigs) | set(markers.ar_markers_on_contigs)
-    out = labels.copy()
+    out = labels.copy()  # keep the dtype (uint32 for Leiden labels)
     next_label = int(labels.max()) + 1 if len(labels) else 0
     n_split = 0
 
