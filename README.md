@@ -61,6 +61,7 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - `-s INT`: random seed for reproducible runs.
 - `-V`: print the version.
 - `-S checkm2` and `-D PATH`: choose the final bins across all Leiden partitions with CheckM2 (see below).
+- `-X`: split final bins whose marker genes show contamination (on `dev`/`master`, not yet released; see CHANGELOG).
 - If `-l` (temperature) is not given, it is chosen from the N50: 0.07 above 10 kb, otherwise 0.15.
 
 **Robustness**
