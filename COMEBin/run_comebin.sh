@@ -33,10 +33,12 @@ help_message () {
 	echo "  -c INT          embedding size for coverage network (default=2048)"
 	echo "  -b INT          batch size for training process (default=1024)"
 	echo "  -L INT          only bin contigs of at least INT bp; shorter ones stay unbinned (default=1001, i.e. no extra filter)"
-	echo "  -S STR          final-bin selection: partition (best Leiden partition by marker score, as COMEBin) or"
-	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; needs CheckM2) (default=partition)"
+	echo "  -S STR          final-bin selection: partition (best Leiden partition by marker score, as COMEBin),"
+	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; fails without CheckM2), or"
+	echo "                  auto (checkm2 when CheckM2 is installed and works, else partition) (default=auto)"
 	echo "  -D STR          CheckM2 DIAMOND database for -S checkm2 (default=CheckM2's configured database)"
-	echo "  -X              split final bins whose marker genes show >= 5% contamination (default=off)"
+	echo "  -x              do not split final bins whose marker genes show >= 5% contamination (default: split;"
+	echo "                  -X, the former opt-in flag, is still accepted)"
 	echo "";}
 
 stage_start=${SECONDS}
@@ -76,7 +78,8 @@ max_edges=100
 hmm_evalue=1e-5
 min_contig_length=
 
-while getopts hVXa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
+split_bins=1
+while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -120,6 +123,8 @@ while getopts hVXa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
     ;;
   X) split_bins=1
     ;;
+  x) split_bins=
+    ;;
   \?)
 #    printf "[Usage] `date '+%F %T'` -i <INPUT_FILE> -o <OUTPUT_DIR> -o <P
 #RODUCT_CODE> -s <SOFTWARE_VERSION> -t <TYPE>\n" >&2
@@ -132,10 +137,10 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"
 seed_options=()
-final_selection=${final_selection:-partition}
+final_selection=${final_selection:-auto}
 case "${final_selection}" in
-  partition|checkm2) ;;
-  *) echo "Unknown -S value: ${final_selection} (use partition or checkm2)" >&2; exit 1 ;;
+  partition|checkm2|auto) ;;
+  *) echo "Unknown -S value: ${final_selection} (use partition, checkm2 or auto)" >&2; exit 1 ;;
 esac
 selection_options=(--final_selection "${final_selection}")
 if [ -n "${split_bins:-}" ]; then

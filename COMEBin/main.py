@@ -243,9 +243,10 @@ def arguments():
     get_result_subparsers.add_argument('--seed', default=DEFAULT_RANDOM_SEED, type=int,
                                        help='optional random seed for reproducible runs.')
 
-    get_result_subparsers.add_argument('--final_selection', default='partition', choices=['partition', 'checkm2'],
+    get_result_subparsers.add_argument('--final_selection', default='partition', choices=['partition', 'checkm2', 'auto'],
                                        help="partition: keep the Leiden partition with the best marker score (COMEBin). "
-                                            "checkm2: pick bins across all partitions with CheckM2 estimates.")
+                                            "checkm2: pick bins across all partitions with CheckM2 estimates. "
+                                            "auto: checkm2 when CheckM2 is available, else partition.")
     get_result_subparsers.add_argument('--split_bins', action='store_true',
                                        help="split final bins whose marker genes show >= 5%% contamination "
                                             "(k-means on their embeddings).")

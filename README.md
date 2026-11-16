@@ -61,7 +61,7 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - `-s INT`: random seed for reproducible runs.
 - `-V`: print the version.
 - `-S checkm2` and `-D PATH`: choose the final bins across all Leiden partitions with CheckM2 (see below).
-- `-X`: split final bins whose marker genes show contamination (on `dev`/`master`, not yet released; see CHANGELOG).
+- `-X`: split final bins whose marker genes show contamination. Not yet released; on `dev` it is the default (`-x` turns it off), and `-S auto` is the default selection (see CHANGELOG).
 - If `-l` (temperature) is not given, it is chosen from the N50: 0.07 above 10 kb, otherwise 0.15.
 
 **Robustness**
@@ -92,8 +92,9 @@ contamination instead of 20–21, for about 11 % more run time (36 instead of 32
 ![Gold-standard genomes recovered on CAMI II human](benchmark/figures/quality_checkm2.png)
 
 `-S checkm2` needs [CheckM2](https://github.com/chklovski/CheckM2) and its database (`-D`, or
-`checkm2 database --download`). Without CheckM2 the run falls back to the default selection
-and logs a warning.
+`checkm2 database --download`). In 1.0.x, without CheckM2 the run falls back to the default
+selection and logs a warning. On `dev` (next release), `-S checkm2` fails without CheckM2, and the
+new default `-S auto` uses CheckM2 when it works and the default selection otherwise.
 
 ## How COMEBin works
 

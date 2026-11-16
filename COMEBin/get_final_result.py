@@ -301,10 +301,14 @@ def checkm2_python(explicit=None):
 
 def checkm2_bin_selection(logger, args, result_dir, result_names, contig_ids, base_name, num_threads):
     """Run checkm2_select.py; returns per-contig labels, or None to keep the base partition."""
+    required = getattr(args, 'final_selection', 'partition') == 'checkm2'
     python = checkm2_python(getattr(args, 'checkm2_python', None))
     if python is None:
-        logger.warning('Final-bin selection "checkm2" needs CheckM2 (not found); '
-                       'keeping the partition chosen by marker score.')
+        if required:
+            raise RuntimeError('Final-bin selection "checkm2" needs CheckM2, which was not found '
+                               '(install it, or pass --checkm2_python / use -S partition).')
+        logger.warning('CheckM2 not found: keeping the partition chosen by marker score. '
+                       'Install CheckM2 for the better CheckM2 bin selection.')
         return None
     work = Path(args.output_path) / 'checkm2_select'
     work.mkdir(parents=True, exist_ok=True)
@@ -322,7 +326,11 @@ def checkm2_bin_selection(logger, args, result_dir, result_names, contig_ids, ba
     with open(work / 'checkm2_select.log', 'w') as log:
         status = subprocess.run(cmd, stdout=log, stderr=subprocess.STDOUT).returncode
     if status != 0:
-        raise RuntimeError(f'CheckM2 bin selection failed (exit {status}); see {work / "checkm2_select.log"}')
+        if required:
+            raise RuntimeError(f'CheckM2 bin selection failed (exit {status}); see {work / "checkm2_select.log"}')
+        logger.warning('CheckM2 bin selection failed (exit %d; see %s): keeping the partition chosen by '
+                       'marker score.', status, work / 'checkm2_select.log')
+        return None
     labels = np.load(out).astype(np.uint32, copy=False)
     if len(labels) != len(contig_ids):
         raise RuntimeError(f'CheckM2 bin selection returned {len(labels)} labels for {len(contig_ids)} contigs.')
@@ -363,7 +371,7 @@ def run_get_final_result(logger, args, seed_num: int, num_threads: int = 40,
     save_high_quality_assignments(
         result_dir, best_method, contig_ids, best_labels, best_qualities)
     logger.info('Final result:\t%s', result_dir / best_method)
-    if getattr(args, 'final_selection', 'partition') == 'checkm2':
+    if getattr(args, 'final_selection', 'partition') in ('checkm2', 'auto'):
         if result_format != 'binary-labels':
             logger.warning('CheckM2 bin selection needs binary Leiden labels; keeping the partition.')
         else:

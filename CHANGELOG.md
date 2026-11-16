@@ -5,8 +5,14 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 
 ## Unreleased
 
+### New defaults (better bins)
+- **Bin splitting is on by default** (`-x` turns it off; `-X` is still accepted). See below.
+- **`-S auto` is the new default:** the CheckM2 bin selection (`-S checkm2`) is used when CheckM2 is installed and works, otherwise the partition chosen by marker score, with a warning in the log. `-S checkm2` now fails when CheckM2 is missing or fails, instead of silently falling back.
+  - CAMI II human (AMBER, seeds 42 / 7 / 13), split + CheckM2 selection against 1.0.2: genomes > 90 % complete and < 5 % contaminated 20 / 21 / 21 → 26 / 27 / 26, > 50 % / < 10 % 31 / 29 / 31 → 33 / 35 / 33, ARI 0.77 / 0.76 / 0.77 → 0.87 / 0.84 / 0.87. Assigned sequence 99 % → 94–98 %. Run time 32 → 39 min, peak memory of the CheckM2 step about 10 GB.
+  - BATS medium (CheckM2, 3 seeds): high/medium-quality bins unchanged (0 / 2), mean contamination 3.5–4.2 % → 1.4–1.7 %.
+
 ### New option
-- **`-X`: split contaminated bins** (opt-in). After the final bins are chosen, each bin whose single-copy marker genes show at least 5 % contamination is re-clustered with length-weighted k-means (k = 2–4) on its contigs' embeddings. The split is kept when it raises the sum of (completeness − 5 × contamination) over the parts of at least 200 kb; smaller parts are not reported. No extra run time.
+- **`-X`: split contaminated bins** (now the default). After the final bins are chosen, each bin whose single-copy marker genes show at least 5 % contamination is re-clustered with length-weighted k-means (k = 2–4) on its contigs' embeddings. The split is kept when it raises the sum of (completeness − 5 × contamination) over the parts of at least 200 kb; smaller parts are not reported. No extra run time.
   - CAMI II human (AMBER, seeds 42 / 7): genomes > 90 % complete and < 5 % contaminated 20 → 21 / 21 → 24, > 50 % / < 10 % 31 → 33 / 29 → 33, ARI 0.768 → 0.818 / 0.759 → 0.783. Assigned sequence drops from 99 % to 94 % / 98 %.
   - BATS medium (CheckM2, seeds 42 / 7): high/medium-quality bins unchanged (0 / 2), mean contamination 4.2 → 1.4 % / 3.5 → 1.7 %.
 
