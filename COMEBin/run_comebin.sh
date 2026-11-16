@@ -37,8 +37,7 @@ help_message () {
 	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; fails without CheckM2), or"
 	echo "                  auto (checkm2 when CheckM2 is installed and works, else partition) (default=auto)"
 	echo "  -D STR          CheckM2 DIAMOND database for -S checkm2 (default=CheckM2's configured database)"
-	echo "  -x              do not split final bins whose marker genes show >= 5% contamination (default: split;"
-	echo "                  -X, the former opt-in flag, is still accepted)"
+	echo "  -X              split final bins whose marker genes show >= 5% contamination (default=off; -x turns it off)"
 	echo "";}
 
 stage_start=${SECONDS}
@@ -78,7 +77,7 @@ max_edges=100
 hmm_evalue=1e-5
 min_contig_length=
 
-split_bins=1
+split_bins=
 while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
  case ${OPT} in
   h) help_message
