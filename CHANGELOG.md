@@ -3,7 +3,7 @@
 COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
 1.0.0 lists the changes relative to COMEBin v1.1.0.
 
-## Unreleased
+## 1.1.0 (2026-11-17)
 
 ### New default (better bins)
 - **`-S auto` is the new default:** the CheckM2 bin selection (`-S checkm2`) is used when CheckM2 is installed and works, otherwise the partition chosen by marker score, with a warning in the log. `-S checkm2` now fails when CheckM2 is missing or fails, instead of silently falling back.
