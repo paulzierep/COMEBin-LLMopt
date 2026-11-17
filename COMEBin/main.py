@@ -100,7 +100,7 @@ def arguments():
 
     CLtraining_subparsers.add_argument(
         '--temperature', default=None, type=float,
-        help='InfoNCE temperature; when omitted, use 0.07 for assembly N50 > 10000 and 0.15 otherwise.')
+        help='InfoNCE temperature; when omitted, use 0.1 for assembly N50 > 10000 and 0.15 otherwise.')
 
     CLtraining_subparsers.add_argument('--n_views', default=6, type=int, metavar='N',
                         help='Number of views for contrastive learning training.')

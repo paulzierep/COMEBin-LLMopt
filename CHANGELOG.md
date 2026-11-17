@@ -8,6 +8,9 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 ### New default (better bins)
 - **`-S auto` is the new default:** the CheckM2 bin selection (`-S checkm2`) is used when CheckM2 is installed and works, otherwise the partition chosen by marker score, with a warning in the log. `-S checkm2` now fails when CheckM2 is missing or fails, instead of silently falling back.
   - CAMI II human (AMBER, seeds 42 / 7), CheckM2 selection against 1.0.x: genomes > 90 % complete and < 5 % contaminated 20 / 21 → 25 / 24, ARI 0.77 / 0.76 → 0.82 / 0.81. Run time 32 → 36 min, peak memory of the CheckM2 step about 10 GB.
+- **Temperature 0.1 instead of 0.07** for assemblies with an N50 above 10 kb (the automatic choice when `-l` is not given; 0.15 for lower N50 is unchanged).
+  - CAMI II human (AMBER, seeds 42 / 7 / 13, with `-S auto`): genomes > 90 % complete and < 5 % contaminated 25 / 24 / 26 → 28 / 26 / 30, > 50 % / < 10 % 32 / 31 / 32 → 35 / 32 / 36, ARI 0.82 → 0.84–0.85, bp F1 (seed 42) 0.667 → 0.725. Fewer, larger bins (100 → 75 with seed 42). Same run time.
+  - Also better on a second gold-standard dataset with all three seeds.
 
 ### New option
 - **`-X`: split contaminated bins** (opt-in). After the final bins are chosen, each bin whose single-copy marker genes show at least 5 % contamination is re-clustered with length-weighted k-means (k = 2–4) on its contigs' embeddings. The split is kept when it raises the sum of (completeness − 5 × contamination) over the parts of at least 200 kb; smaller parts are not reported. No extra run time.

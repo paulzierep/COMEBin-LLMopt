@@ -182,7 +182,7 @@ def train_CLmodel(logger, args):
                 'Automatic temperature requires a positive integer assembly_n50 '
                 'in feature_manifest.json; regenerate augmentation data or '
                 'specify --temperature explicitly.')
-        args.temperature = 0.07 if assembly_n50 > 10000 else 0.15
+        args.temperature = 0.1 if assembly_n50 > 10000 else 0.15
         logger.info(
             'Automatically selected temperature=%s from complete-assembly '
             'N50=%d.', args.temperature, assembly_n50)
