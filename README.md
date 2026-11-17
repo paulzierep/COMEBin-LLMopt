@@ -71,7 +71,7 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - An interrupted run no longer reuses incomplete intermediate files.
 - The log shows the wall time of every stage.
 
-## Better bins: CheckM2 selection (default on `master`, next release) and bin splitting (opt-in)
+## Better bins: CheckM2 selection and temperature 0.1 (default on `master`, next release) and bin splitting (opt-in)
 
 COMEBin clusters the contig embeddings with Leiden about 120 times (different resolutions and
 bandwidths) and keeps the one partition with the best marker-gene score. Often a genome is binned
@@ -98,6 +98,11 @@ On CAMI II human, the CheckM2 selection recovers 24–26 gold-standard genomes a
 < 5 % contamination instead of 20–21, for 36 instead of 32 min. Adding `-X` gives 26–27, but it also
 cuts low-quality bins into several small ones, so 94–98 % of the sequence is assigned instead of 99 %
 and the bp-weighted AMBER F1 can drop (0.728 → 0.671 with seed 7). That is why it stays opt-in.
+
+**Temperature 0.1** (default on `master`): the contrastive-loss temperature chosen automatically for
+assemblies with an N50 above 10 kb is now 0.1 instead of 0.07. Together with `-S auto`, CAMI II human gives
+26–30 genomes at > 90 % / < 5 % (seeds 42, 7, 13; 25 / 24 / 26 with 0.07), an ARI of 0.84–0.85 and a
+bp-weighted F1 of 0.70–0.73, with the same run time. Bins are fewer and larger.
 
 ![Gold-standard genomes recovered on CAMI II human](benchmark/figures/quality_defaults.png)
 
