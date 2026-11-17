@@ -16,7 +16,7 @@ If you use COMEBin-LLMopt, please credit **both** the COMEBin method and this ve
 1. **COMEBin:** Wang, Z., You, R., Han, H. et al. Effective binning of metagenomic contigs
    using contrastive multi-view representation learning. *Nat Commun* 15, 585 (2024).
    <https://doi.org/10.1038/s41467-023-44290-z>
-2. **COMEBin-LLMopt:** Zierep, P. COMEBin-LLMopt: an LLM-optimized, faster COMEBin (version 1.0.2).
+2. **COMEBin-LLMopt:** Zierep, P. COMEBin-LLMopt: an LLM-optimized, faster COMEBin (version 1.1.0).
    <https://github.com/paulzierep/COMEBin-LLMopt>
 
 Please also give the version you used (`comebin-llmopt -V`).
@@ -61,7 +61,7 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - `-s INT`: random seed for reproducible runs.
 - `-V`: print the version.
 - `-S checkm2` and `-D PATH`: choose the final bins across all Leiden partitions with CheckM2 (see below).
-- `-X`: split final bins whose marker genes show contamination (opt-in; not yet released, see CHANGELOG). On `master`, `-S auto` is the default selection.
+- `-X`: split final bins whose marker genes show contamination (opt-in, since 1.1.0). Since 1.1.0, `-S auto` is the default selection.
 - If `-l` (temperature) is not given, it is chosen from the N50: 0.1 above 10 kb (0.07 up to 1.0.2), otherwise 0.15.
 
 **Robustness**
@@ -71,12 +71,12 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - An interrupted run no longer reuses incomplete intermediate files.
 - The log shows the wall time of every stage.
 
-## Better bins: CheckM2 selection and temperature 0.1 (default on `master`, next release) and bin splitting (opt-in)
+## Better bins: CheckM2 selection and temperature 0.1 (default since 1.1.0) and bin splitting (opt-in)
 
 COMEBin clusters the contig embeddings with Leiden about 120 times (different resolutions and
 bandwidths) and keeps the one partition with the best marker-gene score. Often a genome is binned
 well in one partition and badly in the chosen one, and some final bins still merge two genomes.
-COMEBin-LLMopt adds two steps after clustering. In 1.0.2 both are opt-in; on `master` (next release)
+COMEBin-LLMopt adds two steps after clustering. Up to 1.0.2 both were opt-in; since 1.1.0
 the CheckM2 selection is the default and bin splitting stays opt-in.
 
 **CheckM2 bin selection** (`-S checkm2`; default `-S auto`) picks the best bins from all partitions:
@@ -99,7 +99,7 @@ On CAMI II human, the CheckM2 selection recovers 24–26 gold-standard genomes a
 cuts low-quality bins into several small ones, so 94–98 % of the sequence is assigned instead of 99 %
 and the bp-weighted AMBER F1 can drop (0.728 → 0.671 with seed 7). That is why it stays opt-in.
 
-**Temperature 0.1** (default on `master`): the contrastive-loss temperature chosen automatically for
+**Temperature 0.1** (default since 1.1.0): the contrastive-loss temperature chosen automatically for
 assemblies with an N50 above 10 kb is now 0.1 instead of 0.07. Together with `-S auto`, CAMI II human gives
 26–30 genomes at > 90 % / < 5 % (seeds 42, 7, 13; 25 / 24 / 26 with 0.07), an ARI of 0.84–0.85 and a
 bp-weighted F1 of 0.70–0.73, with the same run time. Bins are fewer and larger.
@@ -107,7 +107,7 @@ bp-weighted F1 of 0.70–0.73, with the same run time. Bins are fewer and larger
 ![Gold-standard genomes recovered on CAMI II human](benchmark/figures/quality_defaults.png)
 
 The CheckM2 selection needs [CheckM2](https://github.com/chklovski/CheckM2) and its database (`-D`, or
-`checkm2 database --download`) and about 10 GB of RAM. With `-S auto` (the default on `master`), a run without a
+`checkm2 database --download`) and about 10 GB of RAM. With `-S auto` (the default since 1.1.0), a run without a
 working CheckM2 keeps COMEBin's selection and logs a warning; `-S checkm2` stops with an error instead.
 In 1.0.2, `-S checkm2` without CheckM2 falls back to the default selection with a warning.
 
@@ -143,7 +143,7 @@ python -m pip install torch==2.13.0 --index-url https://download.pytorch.org/whl
 
 Then run `COMEBin/comebin-llmopt` (or `bash COMEBin/run_comebin.sh`, which takes the same options).
 
-For the CheckM2 bin selection (`-S checkm2`, or automatically with `-S auto` on `master`), also install CheckM2 (for example `conda create -n checkm2 -c conda-forge -c bioconda checkm2`)
+For the CheckM2 bin selection (`-S checkm2`, or automatically with `-S auto` since 1.1.0), also install CheckM2 (for example `conda create -n checkm2 -c conda-forge -c bioconda checkm2`)
 and put its `bin/` on the `PATH`; COMEBin-LLMopt runs the selection with CheckM2's own Python.
 
 A Galaxy tool is under review in [tools-iuc](https://github.com/galaxyproject/tools-iuc/pull/8903).
@@ -156,7 +156,7 @@ Inputs: an assembly (FASTA) and one sorted BAM file per sample with the reads ma
 comebin-llmopt -a contigs.fasta -p bam_dir/ -o out/ -t 32 -d cpu -s 42
 ```
 
-Add `-S checkm2 -D /path/to/uniref100.KO.1.dmnd` for the CheckM2 bin selection (see above); on `master` it is used
+Add `-S checkm2 -D /path/to/uniref100.KO.1.dmnd` for the CheckM2 bin selection (see above); since 1.1.0 it is used
 automatically when CheckM2 is installed (`-D` sets its database, `-S partition` turns it off). Add `-X` to split contaminated bins.
 Use `-d cuda` to train on a GPU. `comebin-llmopt -h` lists all options. Results:
 
