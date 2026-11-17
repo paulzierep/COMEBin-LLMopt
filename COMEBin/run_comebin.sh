@@ -32,6 +32,7 @@ help_message () {
 	echo "  -e INT          embedding size for comebin network (default=2048)"
 	echo "  -c INT          embedding size for coverage network (default=2048)"
 	echo "  -b INT          batch size for training process (default=1024)"
+	echo "  -r INT          training epochs (default=200; cosine learning-rate schedule over the epochs)"
 	echo "  -L INT          only bin contigs of at least INT bp; shorter ones stay unbinned (default=1001, i.e. no extra filter)"
 	echo "  -S STR          final-bin selection: partition (best Leiden partition by marker score, as COMEBin),"
 	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; fails without CheckM2), or"
@@ -70,6 +71,7 @@ temperature=
 emb_szs_forcov=2048
 emb_szs=2048
 batch_size=1024
+epochs=200
 device=cuda
 random_seed=
 leiden_workers=
@@ -78,7 +80,7 @@ hmm_evalue=1e-5
 min_contig_length=
 
 split_bins=
-while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
+while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -113,6 +115,8 @@ while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:L:S:D: OPT; do
   c) emb_szs_forcov=${OPTARG}
     ;;
   b) batch_size=${OPTARG}
+    ;;
+  r) epochs=${OPTARG}
     ;;
   S) final_selection=${OPTARG}
     ;;
@@ -253,7 +257,7 @@ else
     echo "Running getting representation."
     python "${main_py}" train --data "${output_dir}/data_augmentation" \
     --emb_szs_forcov "${emb_szs_forcov}" \
-    --batch_size "${batch_size}" --emb_szs "${emb_szs}" --n_views "${n_views}" \
+    --batch_size "${batch_size}" --epochs "${epochs}" --emb_szs "${emb_szs}" --n_views "${n_views}" \
     --output_path "${output_dir}/comebin_res" --earlystop --addvars --vars_sqrt \
     --device "${device}" --num_threads "${num_threads}" "${temperature_options[@]}" "${seed_options[@]}"
     train_status=$?
