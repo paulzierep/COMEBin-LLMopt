@@ -31,6 +31,7 @@ help_message () {
 	echo "  -l FLOAT        temperature in loss function (default=0.1 for assemblies with an N50 > 10000, default=0.15 for others)"
 	echo "  -e INT          embedding size for comebin network (default=2048)"
 	echo "  -c INT          embedding size for coverage network (default=2048)"
+	echo "  -O INT          output (embedding) dimension of the comebin and coverage networks (default=128)"
 	echo "  -b INT          batch size for training process (default=1024)"
 	echo "  -r INT          training epochs (default=200; cosine learning-rate schedule over the epochs)"
 	echo "  -L INT          only bin contigs of at least INT bp; shorter ones stay unbinned (default=1001, i.e. no extra filter)"
@@ -72,6 +73,7 @@ emb_szs_forcov=2048
 emb_szs=2048
 batch_size=1024
 epochs=200
+out_dim=128
 device=cuda
 random_seed=
 leiden_workers=
@@ -80,7 +82,7 @@ hmm_evalue=1e-5
 min_contig_length=
 
 split_bins=
-while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D: OPT; do
+while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -117,6 +119,8 @@ while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D: OPT; do
   b) batch_size=${OPTARG}
     ;;
   r) epochs=${OPTARG}
+    ;;
+  O) out_dim=${OPTARG}
     ;;
   S) final_selection=${OPTARG}
     ;;
@@ -256,7 +260,7 @@ if [[ -s "${embedding_manifest}" && -s "${embedding_ids}" &&
 else
     echo "Running getting representation."
     python "${main_py}" train --data "${output_dir}/data_augmentation" \
-    --emb_szs_forcov "${emb_szs_forcov}" \
+    --emb_szs_forcov "${emb_szs_forcov}" --out_dim "${out_dim}" --out_dim_forcov "${out_dim}" \
     --batch_size "${batch_size}" --epochs "${epochs}" --emb_szs "${emb_szs}" --n_views "${n_views}" \
     --output_path "${output_dir}/comebin_res" --earlystop --addvars --vars_sqrt \
     --device "${device}" --num_threads "${num_threads}" "${temperature_options[@]}" "${seed_options[@]}"
