@@ -34,3 +34,21 @@ def test_auto_with_failing_checkm2_keeps_partition(monkeypatch, tmp_path):
     args.contig_file, args.selection_weight = 'x.fa', 4.0
     out = get_final_result.checkm2_bin_selection(logging.getLogger('t'), args, tmp_path, [], [], 'base', 1)
     assert out is None
+
+
+def test_checkm2_check_reports_missing_checkm2(monkeypatch):
+    import checkm2_check
+    monkeypatch.setattr(checkm2_check, 'checkm2_python', lambda explicit=None: None)
+    ok, message = checkm2_check.checkm2_status()
+    assert not ok and 'not found' in message
+
+
+def test_checkm2_check_reports_missing_database(monkeypatch, tmp_path):
+    import checkm2_check
+    monkeypatch.setattr(checkm2_check, 'checkm2_python', lambda explicit=None: [sys.executable])
+    ok, message = checkm2_check.checkm2_status(db=str(tmp_path / 'missing.dmnd'))
+    assert not ok and 'does not exist' in message
+    db = tmp_path / 'db.dmnd'
+    db.write_bytes(b'x')
+    ok, message = checkm2_check.checkm2_status(db=str(db))
+    assert ok and str(db) in message

@@ -186,6 +186,38 @@ fi
 
 main_py="${comebin_dir}/main.py"
 
+# Final-bin selection: check CheckM2 now, not after hours of training, and say what will be used.
+if [[ "${final_selection}" == partition ]]; then
+    echo "[COMEBin-LLMopt] Final-bin selection: partition with the best marker score (-S partition)."
+else
+    checkm2_check_options=()
+    if [ -n "${checkm2_db:-}" ]; then
+        checkm2_check_options+=(--db "${checkm2_db}")
+    fi
+    checkm2_message=$(python "${comebin_dir}/checkm2_check.py" "${checkm2_check_options[@]}" 2>&1)
+    checkm2_usable=$?
+    checkm2_message=$(printf '%s\n' "${checkm2_message}" | tail -n 1)
+    if [[ ${checkm2_usable} -eq 0 ]]; then
+        echo "[COMEBin-LLMopt] Final-bin selection: CheckM2 (-S ${final_selection}); ${checkm2_message}."
+    elif [[ "${final_selection}" == checkm2 ]]; then
+        echo "-S checkm2: ${checkm2_message}. Install CheckM2 and its database (or pass -D), or use -S partition." >&2
+        exit 1
+    else
+        {
+            echo "####################################################################################"
+            echo "WARNING: -S auto cannot use CheckM2: ${checkm2_message}."
+            echo "The final bins will be chosen by marker score (as -S partition), which recovered"
+            echo "fewer high-quality genomes than the CheckM2 selection in our benchmarks."
+            echo "Install CheckM2 and its database (or pass -D) for the CheckM2 selection, or pass"
+            echo "-S partition to choose the marker-score selection explicitly."
+            echo "####################################################################################"
+        } >&2
+        final_selection=partition
+        selection_options[1]=partition
+        selection_note="partition with the best marker score (-S auto without CheckM2: ${checkm2_message})"
+    fi
+fi
+
 # COMEBin itself only uses contigs longer than 1000 bp. A larger minimum length
 # is applied by binning a filtered copy of the assembly; coverage ignores BAM
 # references that are not in it.
@@ -306,3 +338,11 @@ if [[ ${result_status} -ne 0 ]]; then
     report_stage_failure "Final-result selection" "${result_status}"
 fi
 report_stage_time "final-result selection"
+
+selection_file="${output_dir}/comebin_res/final_selection.txt"
+if [[ -n "${selection_note:-}" ]]; then
+    echo "${selection_note}" > "${selection_file}"
+    echo "WARNING: final bins were chosen by ${selection_note}." >&2
+elif [[ -s "${selection_file}" ]]; then
+    echo "[COMEBin-LLMopt] Final bins chosen by: $(cat "${selection_file}")"
+fi

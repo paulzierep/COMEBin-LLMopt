@@ -9,6 +9,9 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 - **`-r INT`: number of training epochs** (default 200, unchanged; the cosine learning-rate schedule spans the given epochs). 100 or 300 epochs were not better than 200 on the gold-standard datasets (CAMI II human, seed 42: genomes > 90 % complete and < 5 % contaminated 28 at 200 epochs, 31 at 100, 25 at 300; a second dataset was worse with both), so the default stays.
 - **`-O INT`: output (embedding) dimension** of the k-mer/coverage and coverage networks (default 128, unchanged). Benchmark of 64 and 256 pending.
 
+### Changed
+- **CheckM2 is checked before training.** Previously `-S auto` found out only at the end of a run that CheckM2 or its database was missing, and then only logged a warning. Now `run_comebin.sh` checks CheckM2 and its database at the start (`checkm2_check.py`) and prints which final-bin selection it will use. Without a working CheckM2, `-S auto` prints a prominent warning on stderr at the start and again at the end; `-S checkm2` stops at once instead of after training. `comebin_res/final_selection.txt` records the selection that made the final bins (including a CheckM2 failure during the run). Bins are unchanged.
+
 ## 1.1.0 (2026-11-17)
 
 ### New default (better bins)

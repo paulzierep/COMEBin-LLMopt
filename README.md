@@ -109,6 +109,9 @@ bp-weighted F1 of 0.70–0.73, with the same run time. Bins are fewer and larger
 The CheckM2 selection needs [CheckM2](https://github.com/chklovski/CheckM2) and its database (`-D`, or
 `checkm2 database --download`) and about 10 GB of RAM. With `-S auto` (the default since 1.1.0), a run without a
 working CheckM2 keeps COMEBin's selection and logs a warning; `-S checkm2` stops with an error instead.
+Since the next release, CheckM2 and its database are checked at the start of the run, before training: `-S auto`
+prints a clear warning on stderr when it cannot use CheckM2 (again at the end of the run), `-S checkm2` stops right away,
+and `comebin_res/final_selection.txt` records which selection made the final bins.
 In 1.0.2, `-S checkm2` without CheckM2 falls back to the default selection with a warning.
 
 ## How COMEBin works

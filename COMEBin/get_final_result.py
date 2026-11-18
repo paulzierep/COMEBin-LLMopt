@@ -371,16 +371,22 @@ def run_get_final_result(logger, args, seed_num: int, num_threads: int = 40,
     save_high_quality_assignments(
         result_dir, best_method, contig_ids, best_labels, best_qualities)
     logger.info('Final result:\t%s', result_dir / best_method)
+    used = f'partition with the best marker score ({best_method})'
     if getattr(args, 'final_selection', 'partition') in ('checkm2', 'auto'):
         if result_format != 'binary-labels':
             logger.warning('CheckM2 bin selection needs binary Leiden labels; keeping the partition.')
+            used += ' - CheckM2 selection skipped: no binary Leiden labels'
         else:
             selected = checkm2_bin_selection(
                 logger, args, result_dir, result_names, contig_ids, best_method, num_threads)
             if selected is not None:
                 best_labels = selected
+                used = f'CheckM2 bin selection across {len(result_names)} partitions'
                 logger.info('Final bins:\tCheckM2 bin selection across %d partitions (base partition %s).',
                             len(result_names), best_method)
+            else:
+                used += ' - CheckM2 selection FAILED, see the warning in the log'
+    (Path(args.output_path) / 'final_selection.txt').write_text(used + '\n')
     if getattr(args, 'split_bins', False):
         embeddings = _result_axis_embeddings(args, len(contig_ids))
         if embeddings is None:
