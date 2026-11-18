@@ -36,10 +36,17 @@ def _normalise_sample(values, mode, label, logger):
         values /= denominator
 
 
+def _log1p_checked(values, label):
+    """log(1 + x) in place, before the per-sample normalization (compresses the abundance range)."""
+    if not np.isfinite(values).all() or np.any(values < 0):
+        raise ValueError(f'{label} contains a non-finite or negative value.')
+    np.log1p(values, out=values)
+
+
 def get_kmer_coverage(
         data_path, n_views=2, cov_meannormalize=False,
         cov_minmaxnormalize=False, cov_standardization=False, addvars=False,
-        vars_sqrt=False, logger=None):
+        vars_sqrt=False, logger=None, cov_log=False):
     logger = logger or logging.getLogger('COMEBin')
     data_path = Path(data_path).expanduser().resolve()
     bundle = load_binary_feature_bundle(data_path, n_views=n_views)
@@ -80,6 +87,8 @@ def get_kmer_coverage(
     for sample_index, sample_name in enumerate(bundle.bam_ids):
         values = np.array(
             bundle.coverage_mean[sample_index], dtype=np.float64, copy=True)
+        if cov_log:
+            _log1p_checked(values, f'Coverage sample {sample_name}')
         _normalise_sample(
             values, normalization_mode,
             f'Coverage sample {sample_name}', logger)
@@ -95,6 +104,8 @@ def get_kmer_coverage(
                     f'or negative value.')
             if vars_sqrt:
                 np.sqrt(values, out=values)
+            if cov_log:
+                _log1p_checked(values, f'Variance sample {sample_name}')
             _normalise_sample(
                 values, normalization_mode,
                 f'Variance sample {sample_name}', logger)
@@ -117,10 +128,10 @@ def get_kmer_coverage(
 def get_ContrastiveLearningDataset(
         data_path, n_views=2, cov_meannormalize=False,
         cov_minmaxnormalize=False, cov_standardization=False, addvars=False,
-        vars_sqrt=False, logger=None):
+        vars_sqrt=False, logger=None, cov_log=False):
     return get_kmer_coverage(
         data_path, n_views, cov_meannormalize, cov_minmaxnormalize,
-        cov_standardization, addvars, vars_sqrt, logger)
+        cov_standardization, addvars, vars_sqrt, logger, cov_log=cov_log)
 
 
 def load_nocontrast_view0(data_path, logger):

@@ -174,7 +174,8 @@ def train_CLmodel(logger, args):
     dataset, namelist, contig_lengths, feature_metadata = get_ContrastiveLearningDataset(
         data_path, args.n_views, args.cov_meannormalize,
         args.cov_minmaxnormalize, args.cov_standardization,
-        args.addvars, args.vars_sqrt, logger=logger)
+        args.addvars, args.vars_sqrt, logger=logger,
+        cov_log=getattr(args, 'cov_transform', 'none') == 'log')
     if args.temperature is None:
         assembly_n50 = feature_metadata.get('assembly_n50')
         if isinstance(assembly_n50, bool) or not isinstance(assembly_n50, int) or assembly_n50 <= 0:

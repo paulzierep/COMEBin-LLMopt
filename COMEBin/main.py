@@ -119,6 +119,8 @@ def arguments():
                                        help='cov_minmaxnormalize')
     CLtraining_subparsers.add_argument('--cov_standardization', action='store_true',
                                        help='cov_standardization')
+    CLtraining_subparsers.add_argument('--cov_transform', default='none', choices=['none', 'log'],
+                                       help='coverage transform before the per-sample normalization (default: none)')
     CLtraining_subparsers.add_argument('--notuseaug0', action='store_true',
                                        help='notuseaug0')
     CLtraining_subparsers.add_argument('--num_threads', default=10, type=int,
