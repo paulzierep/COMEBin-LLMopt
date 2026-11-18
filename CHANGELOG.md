@@ -5,8 +5,9 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 
 ## Unreleased
 
-### New option
+### New options
 - **`-r INT`: number of training epochs** (default 200, unchanged; the cosine learning-rate schedule spans the given epochs). 100 or 300 epochs were not better than 200 on the gold-standard datasets (CAMI II human, seed 42: genomes > 90 % complete and < 5 % contaminated 28 at 200 epochs, 31 at 100, 25 at 300; a second dataset was worse with both), so the default stays.
+- **`-O INT`: output (embedding) dimension** of the k-mer/coverage and coverage networks (default 128, unchanged). Benchmark of 64 and 256 pending.
 
 ## 1.1.0 (2026-11-17)
 
@@ -17,7 +18,7 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
   - CAMI II human (AMBER, seeds 42 / 7 / 13, with `-S auto`): genomes > 90 % complete and < 5 % contaminated 25 / 24 / 26 → 28 / 26 / 30, > 50 % / < 10 % 32 / 31 / 32 → 35 / 32 / 36, ARI 0.82 → 0.84–0.85, bp F1 (seed 42) 0.667 → 0.725. Fewer, larger bins (100 → 75 with seed 42). Same run time.
   - Also better on a second gold-standard dataset with all three seeds.
 
-### New option
+### New options
 - **`-X`: split contaminated bins** (opt-in). After the final bins are chosen, each bin whose single-copy marker genes show at least 5 % contamination is re-clustered with length-weighted k-means (k = 2–4) on its contigs' embeddings. The split is kept when it raises the sum of (completeness − 5 × contamination) over the parts of at least 200 kb; smaller parts are not reported. No extra run time.
   - CAMI II human (AMBER, seeds 42 / 7 / 13), with the CheckM2 selection: genomes > 90 % complete and < 5 % contaminated 25 / 24 / 26 → 26 / 27 / 26, ARI 0.82 / 0.81 / 0.82 → 0.87 / 0.84 / 0.87. Assigned sequence drops from 99 % to 94–98 %.
   - It stays opt-in because it can lower the average bin completeness: the bp-weighted AMBER F1 fell from 0.728 to 0.671 with seed 7, and splitting often cuts low-quality bins into several small ones.
