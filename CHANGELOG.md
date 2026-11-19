@@ -3,11 +3,14 @@
 COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
 1.0.0 lists the changes relative to COMEBin v1.1.0.
 
-## Unreleased
+## 1.1.1 (2026-11-19)
+
+Same bins as 1.1.0 with default settings (checked on CAMI II human, seed 42). New: CheckM2 is checked before training, `-T` for temporary files, gzip-compressed assemblies, and the options `-r`, `-O`, `-C`.
 
 ### New options
 - **`-r INT`: number of training epochs** (default 200, unchanged; the cosine learning-rate schedule spans the given epochs). 100 or 300 epochs were not better than 200 on the gold-standard datasets (CAMI II human, seed 42: genomes > 90 % complete and < 5 % contaminated 28 at 200 epochs, 31 at 100, 25 at 300; a second dataset was worse with both), so the default stays.
 - **`-O INT`: output (embedding) dimension** of the k-mer/coverage and coverage networks (default 128, unchanged). 64 and 256 were not better than 128 on the gold-standard datasets (CAMI II human, seed 42: genomes > 90 % complete and < 5 % contaminated 28 at 128, 27 at 64 and at 256; a second dataset was worse with both), so the default stays.
+- **`-C STR`: coverage transform** before the per-sample normalization: `none` (default, unchanged) or `log` (log(1+x)). Not better than `none` on the gold-standard datasets (CAMI II human, seed 42: 30 against 28 genomes > 90 % complete and < 5 % contaminated, within the seed range of 26–30; a second dataset was worse), so the default stays.
 - **`-T DIR`: directory for temporary files** of CheckM, CheckM2, HMMER and Python (exported as `TMPDIR`, and passed to CheckM as `--tmpdir`; default `$TMPDIR`, else `/tmp`). The run stops at the start if the directory is not writable. On cluster nodes with a small `/tmp`, CheckM's `hmmfetch` otherwise fails with "No space left on device" on large assemblies (reported in COMEBin issue 61).
 
 ### Changed

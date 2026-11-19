@@ -16,7 +16,7 @@ If you use COMEBin-LLMopt, please credit **both** the COMEBin method and this ve
 1. **COMEBin:** Wang, Z., You, R., Han, H. et al. Effective binning of metagenomic contigs
    using contrastive multi-view representation learning. *Nat Commun* 15, 585 (2024).
    <https://doi.org/10.1038/s41467-023-44290-z>
-2. **COMEBin-LLMopt:** Zierep, P. COMEBin-LLMopt: an LLM-optimized, faster COMEBin (version 1.1.0).
+2. **COMEBin-LLMopt:** Zierep, P. COMEBin-LLMopt: an LLM-optimized, faster COMEBin (version 1.1.1).
    <https://github.com/paulzierep/COMEBin-LLMopt>
 
 Please also give the version you used (`comebin-llmopt -V`).
@@ -60,8 +60,8 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - `-L INT`: bin only contigs of at least INT bp (default 1001). For large assemblies, `-L 2500` cuts run time several-fold.
 - `-s INT`: random seed for reproducible runs.
 - `-V`: print the version.
-- gzip-compressed assemblies (`-a contigs.fa.gz`) are accepted; they are decompressed once into the output directory (next release).
-- `-T DIR`: directory for temporary files of CheckM, CheckM2, HMMER and Python (default `$TMPDIR`, else `/tmp`). Use it on cluster nodes with a small `/tmp`; CheckM's `hmmfetch` otherwise fails with "No space left on device" on large assemblies (next release).
+- gzip-compressed assemblies (`-a contigs.fa.gz`) are accepted; they are decompressed once into the output directory.
+- `-T DIR`: directory for temporary files of CheckM, CheckM2, HMMER and Python (default `$TMPDIR`, else `/tmp`). Use it on cluster nodes with a small `/tmp`; CheckM's `hmmfetch` otherwise fails with "No space left on device" on large assemblies.
 - `-S checkm2` and `-D PATH`: choose the final bins across all Leiden partitions with CheckM2 (see below).
 - `-X`: split final bins whose marker genes show contamination (opt-in, since 1.1.0). Since 1.1.0, `-S auto` is the default selection.
 - If `-l` (temperature) is not given, it is chosen from the N50: 0.1 above 10 kb (0.07 up to 1.0.2), otherwise 0.15.
@@ -111,7 +111,7 @@ bp-weighted F1 of 0.70–0.73, with the same run time. Bins are fewer and larger
 The CheckM2 selection needs [CheckM2](https://github.com/chklovski/CheckM2) and its database (`-D`, or
 `checkm2 database --download`) and about 10 GB of RAM. With `-S auto` (the default since 1.1.0), a run without a
 working CheckM2 keeps COMEBin's selection and logs a warning; `-S checkm2` stops with an error instead.
-Since the next release, CheckM2 and its database are checked at the start of the run, before training: `-S auto`
+Since 1.1.1, CheckM2 and its database are checked at the start of the run, before training: `-S auto`
 prints a clear warning on stderr when it cannot use CheckM2 (again at the end of the run), `-S checkm2` stops right away,
 and `comebin_res/final_selection.txt` records which selection made the final bins.
 In 1.0.2, `-S checkm2` without CheckM2 falls back to the default selection with a warning.
