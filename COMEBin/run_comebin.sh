@@ -40,6 +40,7 @@ help_message () {
 	echo "                  checkm2 (best bins across all partitions by CheckM2 estimates; fails without CheckM2), or"
 	echo "                  auto (checkm2 when CheckM2 is installed and works, else partition) (default=auto)"
 	echo "  -D STR          CheckM2 DIAMOND database for -S checkm2 (default=CheckM2's configured database)"
+	echo "  -T STR          directory for temporary files of CheckM, CheckM2, HMMER and Python (default=\$TMPDIR, else /tmp)"
 	echo "  -X              split final bins whose marker genes show >= 5% contamination (default=off; -x turns it off)"
 	echo "";}
 
@@ -84,7 +85,7 @@ hmm_evalue=1e-5
 min_contig_length=
 
 split_bins=
-while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C: OPT; do
+while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C:T: OPT; do
  case ${OPT} in
   h) help_message
     exit 0
@@ -132,6 +133,8 @@ while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C: OPT; do
     ;;
   L) min_contig_length=${OPTARG}
     ;;
+  T) tmp_dir=$(realpath -m -- "${OPTARG}") || exit 1
+    ;;
   X) split_bins=1
     ;;
   x) split_bins=
@@ -144,6 +147,15 @@ while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C: OPT; do
 done
 
 export PYTHONUNBUFFERED=1
+if [ -n "${tmp_dir:-}" ]; then
+    mkdir -p -- "${tmp_dir}" || { echo "Cannot create the temporary directory (-T): ${tmp_dir}" >&2; exit 1; }
+    export TMPDIR="${tmp_dir}"
+fi
+if [ ! -d "${TMPDIR:-/tmp}" ] || [ ! -w "${TMPDIR:-/tmp}" ]; then
+    echo "The temporary directory is not writable: ${TMPDIR:-/tmp} (set it with -T DIR)" >&2
+    exit 1
+fi
+echo "Temporary files: ${TMPDIR:-/tmp}"
 export OMP_NUM_THREADS="${OMP_NUM_THREADS:-1}"
 export MKL_NUM_THREADS="${MKL_NUM_THREADS:-1}"
 export OPENBLAS_NUM_THREADS="${OPENBLAS_NUM_THREADS:-1}"

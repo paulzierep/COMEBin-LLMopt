@@ -41,8 +41,15 @@ from collections import Counter
 _GENE_FILES = ('genes.faa', 'genes.fna', 'genes.gff')
 
 
+def _tmpdir_args():
+    """CheckM's --tmpdir from $TMPDIR (run_comebin.sh -T), so hmmfetch does not fill a small /tmp."""
+    tmp_dir = os.environ.get('TMPDIR')
+    return ['--tmpdir', tmp_dir] if tmp_dir and os.path.isdir(tmp_dir) else []
+
+
 def _run_checkm(command):
     """Run one CheckM command and fail loudly instead of continuing silently."""
+    command = command[:2] + _tmpdir_args() + command[2:]
     completed = subprocess.run(command, check=False)
     if completed.returncode != 0:
         raise RuntimeError(
