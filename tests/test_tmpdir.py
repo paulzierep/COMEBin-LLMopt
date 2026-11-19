@@ -43,3 +43,19 @@ def test_unwritable_tmpdir_fails(tmp_path):
     out = _run([], env)
     assert out.returncode == 1
     assert 'not writable' in out.stderr
+
+
+def test_gzip_assembly_is_decompressed(tmp_path):
+    import gzip
+    asm = tmp_path / 'asm.fasta.gz'
+    with gzip.open(asm, 'wt') as handle:
+        handle.write('>c1\n' + 'A' * 3000 + '\n>c2\n' + 'C' * 1500 + '\n')
+    (tmp_path / 'bams').mkdir()
+    out = tmp_path / 'out'
+    # No BAMs: the run stops in data augmentation, after decompressing and filtering.
+    result = _run(['-a', str(asm), '-o', str(out), '-p', str(tmp_path / 'bams'),
+                   '-S', 'partition', '-L', '2500', '-d', 'cpu'], dict(os.environ))
+    assert result.returncode != 0
+    plain = out / 'input_asm.fasta'
+    assert plain.read_text().count('>') == 2
+    assert (out / 'contigs_min2500.fa').read_text().count('>') == 1

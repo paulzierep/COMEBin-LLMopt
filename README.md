@@ -60,6 +60,7 @@ BATS medium: 14 instead of 39 min; 32 threads).
 - `-L INT`: bin only contigs of at least INT bp (default 1001). For large assemblies, `-L 2500` cuts run time several-fold.
 - `-s INT`: random seed for reproducible runs.
 - `-V`: print the version.
+- gzip-compressed assemblies (`-a contigs.fa.gz`) are accepted; they are decompressed once into the output directory (next release).
 - `-T DIR`: directory for temporary files of CheckM, CheckM2, HMMER and Python (default `$TMPDIR`, else `/tmp`). Use it on cluster nodes with a small `/tmp`; CheckM's `hmmfetch` otherwise fails with "No space left on device" on large assemblies (next release).
 - `-S checkm2` and `-D PATH`: choose the final bins across all Leiden partitions with CheckM2 (see below).
 - `-X`: split final bins whose marker genes show contamination (opt-in, since 1.1.0). Since 1.1.0, `-S auto` is the default selection.

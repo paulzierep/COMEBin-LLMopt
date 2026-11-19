@@ -234,6 +234,24 @@ else
     fi
 fi
 
+# A gzip-compressed assembly (detected by its magic bytes) is decompressed once into
+# the output directory; all later steps read the plain copy.
+if [ "$(head -c 2 -- "${contig_file}" | od -An -tx1 | tr -d ' \n')" = "1f8b" ]; then
+    plain_name=$(basename -- "${contig_file}")
+    plain_name=${plain_name%.gz}
+    plain_name=${plain_name%.gzip}
+    [[ "${plain_name}" == *.* ]] || plain_name="${plain_name}.fa"
+    plain_contig_file="${output_dir}/input_${plain_name}"
+    if [[ ! -s "${plain_contig_file}" ]]; then
+        mkdir -p "${output_dir}" || exit 1
+        gzip -cd -- "${contig_file}" > "${plain_contig_file}.part" \
+            && mv -- "${plain_contig_file}.part" "${plain_contig_file}" \
+            || { echo "Cannot decompress ${contig_file}" >&2; rm -f -- "${plain_contig_file}.part"; exit 1; }
+    fi
+    echo "Decompressed ${contig_file} to ${plain_contig_file}"
+    contig_file="${plain_contig_file}"
+fi
+
 # COMEBin itself only uses contigs longer than 1000 bp. A larger minimum length
 # is applied by binning a filtered copy of the assembly; coverage ignores BAM
 # references that are not in it.

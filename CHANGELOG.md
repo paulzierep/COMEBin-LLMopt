@@ -11,6 +11,7 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 - **`-T DIR`: directory for temporary files** of CheckM, CheckM2, HMMER and Python (exported as `TMPDIR`, and passed to CheckM as `--tmpdir`; default `$TMPDIR`, else `/tmp`). The run stops at the start if the directory is not writable. On cluster nodes with a small `/tmp`, CheckM's `hmmfetch` otherwise fails with "No space left on device" on large assemblies (reported in COMEBin issue 61).
 
 ### Changed
+- **gzip-compressed assemblies are accepted** (`-a contigs.fa.gz`, detected by content, not by name). They are decompressed once to `<output>/input_<name>` and all steps read that copy (COMEBin issue 16).
 - **CheckM2 is checked before training.** Previously `-S auto` found out only at the end of a run that CheckM2 or its database was missing, and then only logged a warning. Now `run_comebin.sh` checks CheckM2 and its database at the start (`checkm2_check.py`) and prints which final-bin selection it will use. Without a working CheckM2, `-S auto` prints a prominent warning on stderr at the start and again at the end; `-S checkm2` stops at once instead of after training. `comebin_res/final_selection.txt` records the selection that made the final bins (including a CheckM2 failure during the run). Bins are unchanged.
 
 ## 1.1.0 (2026-11-17)
