@@ -171,6 +171,8 @@ Use `-d cuda` to train on a GPU. `comebin-llmopt -h` lists all options. Results:
 ### Making the BAM files
 
 `COMEBin/scripts/gen_cov_file.sh` maps reads to the contigs (adapted from MetaWRAP's `binning.sh`).
+In the Bioconda package it is on the `PATH` as `comebin-llmopt-gen-cov` (same options, `bwa` included), so replace
+`bash COMEBin/scripts/gen_cov_file.sh` with `comebin-llmopt-gen-cov` below.
 Paired reads (`reads_1.fastq reads_2.fastq ...`) are the default:
 
 ```sh
