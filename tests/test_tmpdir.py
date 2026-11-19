@@ -27,6 +27,8 @@ def test_checkm_without_tmpdir(monkeypatch):
 
 
 def _run(args, env):
+    # run_comebin.sh calls `python`: use the interpreter running the tests.
+    env = dict(env, PATH=os.path.dirname(sys.executable) + os.pathsep + env.get('PATH', ''))
     return subprocess.run(['bash', RUN] + args, capture_output=True, text=True, env=env)
 
 
