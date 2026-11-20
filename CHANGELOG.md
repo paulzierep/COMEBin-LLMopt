@@ -3,7 +3,9 @@
 COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
 1.0.0 lists the changes relative to COMEBin v1.1.0.
 
-## Unreleased
+## 1.1.2 (2026-11-20)
+
+Same bins as 1.1.1 with BAM input. Fixes runs in BusyBox-based BioContainers (Galaxy); new: bedGraph coverage input and `-d mps`.
 
 ### Fixed
 - **BioContainers / Galaxy:** `comebin-llmopt` stopped at once with `realpath: -e: No such file or directory` in BusyBox-based containers (the BioContainer used by Galaxy), because BusyBox `realpath` takes no options. Paths and the gzip check now use Python; a test runs the script with BusyBox tools.
