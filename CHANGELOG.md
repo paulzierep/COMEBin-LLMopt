@@ -5,6 +5,9 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 
 ## Unreleased
 
+### Fixed
+- **BioContainers / Galaxy:** `comebin-llmopt` stopped at once with `realpath: -e: No such file or directory` in BusyBox-based containers (the BioContainer used by Galaxy), because BusyBox `realpath` takes no options. Paths and the gzip check now use Python; a test runs the script with BusyBox tools.
+
 ### New
 - **Precomputed coverage:** the `-p` directory may hold bedGraph files from `bedtools genomecov -bga` (`*.bedgraph`, `*.bg`, optionally gzipped) instead of, or together with, BAM files, one per sample (upstream COMEBin issue #28).
 - **`-d mps`: Apple silicon GPU** (upstream COMEBin issue #24). Mixed precision and pinned memory stay CUDA-only; a clear error is raised when MPS is not available. Not tested on a Mac.

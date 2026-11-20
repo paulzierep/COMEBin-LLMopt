@@ -85,6 +85,16 @@ max_edges=100
 hmm_evalue=1e-5
 min_contig_length=
 
+# Absolute paths without GNU-only options: BioContainers use BusyBox, whose realpath
+# accepts no options. abs_path e PATH requires PATH to exist; abs_path m does not.
+abs_path() {
+  python -c 'import os, sys
+path = os.path.realpath(os.path.expanduser(sys.argv[2]))
+if sys.argv[1] == "e" and not os.path.exists(path):
+    sys.exit(f"{sys.argv[2]}: No such file or directory")
+print(path)' "$1" "$2"
+}
+
 split_bins=
 while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C:T: OPT; do
  case ${OPT} in
@@ -94,11 +104,11 @@ while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C:T: OPT; do
   V) echo "COMEBin-LLMopt version: $VERSION (based on $BASED_ON)"
     exit 0
     ;;
-  a) contig_file=$(realpath -e -- "${OPTARG}") || exit 1
+  a) contig_file=$(abs_path e "${OPTARG}") || exit 1
     ;;
-  o) output_dir=$(realpath -m -- "${OPTARG}") || exit 1
+  o) output_dir=$(abs_path m "${OPTARG}") || exit 1
     ;;
-  p) bam_file_path=$(realpath -e -- "${OPTARG}") || exit 1
+  p) bam_file_path=$(abs_path e "${OPTARG}") || exit 1
     ;;
   n) n_views=${OPTARG}
     ;;
@@ -130,11 +140,11 @@ while getopts hVXxa:o:p:n:t:w:m:d:s:E:l:e:c:b:r:L:S:D:O:C:T: OPT; do
     ;;
   S) final_selection=${OPTARG}
     ;;
-  D) checkm2_db=$(realpath -e -- "${OPTARG}") || exit 1
+  D) checkm2_db=$(abs_path e "${OPTARG}") || exit 1
     ;;
   L) min_contig_length=${OPTARG}
     ;;
-  T) tmp_dir=$(realpath -m -- "${OPTARG}") || exit 1
+  T) tmp_dir=$(abs_path m "${OPTARG}") || exit 1
     ;;
   X) split_bins=1
     ;;
@@ -189,7 +199,7 @@ if [ -z "${contig_file}" -o -z "${output_dir}" -o -z "${bam_file_path}" ]; then
   exit 1
 fi
 
-script_path=$(realpath -- "${BASH_SOURCE[0]}") || exit 1
+script_path=$(abs_path e "${BASH_SOURCE[0]}") || exit 1
 script_dir=$(dirname -- "${script_path}")
 
 if [[ -f "${script_dir}/main.py" ]]; then
@@ -237,7 +247,7 @@ fi
 
 # A gzip-compressed assembly (detected by its magic bytes) is decompressed once into
 # the output directory; all later steps read the plain copy.
-if [ "$(head -c 2 -- "${contig_file}" | od -An -tx1 | tr -d ' \n')" = "1f8b" ]; then
+if [ "$(python -c 'import sys; print(open(sys.argv[1], "rb").read(2).hex())' "${contig_file}")" = "1f8b" ]; then
     plain_name=$(basename -- "${contig_file}")
     plain_name=${plain_name%.gz}
     plain_name=${plain_name%.gzip}

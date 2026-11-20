@@ -1,4 +1,5 @@
 import os
+import shutil
 import subprocess
 import sys
 
@@ -61,3 +62,20 @@ def test_gzip_assembly_is_decompressed(tmp_path):
     plain = out / 'input_asm.fasta'
     assert plain.read_text().count('>') == 2
     assert (out / 'contigs_min2500.fa').read_text().count('>') == 1
+
+
+@pytest.mark.skipif(shutil.which('busybox') is None, reason='busybox not installed')
+def test_runs_with_busybox_coreutils(tmp_path):
+    """BioContainers use BusyBox: its realpath/od/head accept fewer options than GNU coreutils."""
+    shim = tmp_path / 'shim'
+    shim.mkdir()
+    for tool in ['realpath', 'od', 'head', 'tr', 'dirname', 'basename', 'mkdir', 'mv', 'readlink']:
+        (shim / tool).symlink_to(shutil.which('busybox'))
+    env = dict(os.environ, PATH=str(shim) + os.pathsep + os.environ.get('PATH', ''))
+    asm = tmp_path / 'asm.fasta'
+    asm.write_text('>c1\n' + 'A' * 3000 + '\n')
+    (tmp_path / 'bams').mkdir()
+    result = _run(['-a', str(asm), '-o', str(tmp_path / 'out'), '-p', str(tmp_path / 'bams'),
+                   '-T', str(tmp_path / 't'), '-S', 'partition', '-d', 'cpu'], env)
+    assert 'No such file or directory' not in result.stderr, result.stderr
+    assert 'Running data augmentation' in result.stdout
