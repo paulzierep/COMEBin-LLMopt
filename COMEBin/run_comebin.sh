@@ -26,7 +26,7 @@ help_message () {
 	echo "  -t INT          stage worker/thread count where explicitly supported (default=5)"
 	echo "  -w INT          concurrent Leiden worker processes (default=same as -t)"
 	echo "  -m INT          HNSW neighbors retained per contig (default=100)"
-	echo "  -d STR          NN training device: cuda, cuda:N, or cpu (default=cuda)"
+	echo "  -d STR          NN training device: cuda, cuda:N, mps (Apple silicon), or cpu (default=cuda)"
 	echo "  -s INT          random seed for reproducible runs (default=not set)"
 	echo "  -E FLOAT        HMMER sequence E-value used when marker HMMs do not define TC cutoffs (default=1e-5)"
 	echo "  -l FLOAT        temperature in loss function (default=0.1 for assemblies with an N50 > 10000, default=0.15 for others)"

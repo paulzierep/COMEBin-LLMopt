@@ -111,7 +111,7 @@ def arguments():
     CLtraining_subparsers.add_argument('--fp16-precision', action='store_true',
                         help='Whether or not to use 16-bit precision GPU training.')
     CLtraining_subparsers.add_argument('--device', default='cuda',
-                                       help='NN training device: cuda, cuda:N, or cpu.')
+                                       help='NN training device: cuda, cuda:N, mps (Apple silicon), or cpu.')
 
     CLtraining_subparsers.add_argument('--cov_meannormalize', action='store_true',
                                        help='cov_meannormalize')

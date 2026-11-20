@@ -7,6 +7,7 @@ COMEBin-LLMopt versions. Each entry lists changes relative to the previous versi
 
 ### New
 - **Precomputed coverage:** the `-p` directory may hold bedGraph files from `bedtools genomecov -bga` (`*.bedgraph`, `*.bg`, optionally gzipped) instead of, or together with, BAM files, one per sample (upstream COMEBin issue #28).
+- **`-d mps`: Apple silicon GPU** (upstream COMEBin issue #24). Mixed precision and pinned memory stay CUDA-only; a clear error is raised when MPS is not available. Not tested on a Mac.
 
 ## 1.1.1 (2026-11-19)
 

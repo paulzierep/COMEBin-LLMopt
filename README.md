@@ -163,7 +163,7 @@ comebin-llmopt -a contigs.fasta -p bam_dir/ -o out/ -t 32 -d cpu -s 42
 
 Add `-S checkm2 -D /path/to/uniref100.KO.1.dmnd` for the CheckM2 bin selection (see above); since 1.1.0 it is used
 automatically when CheckM2 is installed (`-D` sets its database, `-S partition` turns it off). Add `-X` to split contaminated bins.
-Use `-d cuda` to train on a GPU. `comebin-llmopt -h` lists all options. Results:
+Use `-d cuda` to train on an NVIDIA GPU, or `-d mps` on Apple silicon (untested: no Mac in our benchmarks; mixed precision is CUDA-only). `comebin-llmopt -h` lists all options. Results:
 
 - `out/comebin_res/comebin_res_bins/`: one FASTA file per bin. Bins under 200 kb are not reported.
 - `out/comebin_res/comebin_res.tsv`: contig ID and bin.

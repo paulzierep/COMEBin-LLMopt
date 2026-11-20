@@ -72,8 +72,19 @@ def _resolve_training_device(requested):
     requested = requested.strip().lower()
     if requested == 'cpu':
         return torch.device('cpu')
+    if requested == 'mps':
+        mps = getattr(torch.backends, 'mps', None)
+        if mps is None or not mps.is_built():
+            raise RuntimeError(
+                "Apple MPS training was requested, but this PyTorch build has no MPS support; "
+                "use --device cpu.")
+        if not mps.is_available():
+            raise RuntimeError(
+                "Apple MPS training was requested, but MPS is unavailable "
+                "(it needs Apple silicon and macOS 12.3 or later); use --device cpu.")
+        return torch.device('mps')
     if requested != 'cuda' and re.fullmatch(r'cuda:\d+', requested) is None:
-        raise ValueError(f"Unsupported device {requested!r}; expected cuda, cuda:N, or cpu.")
+        raise ValueError(f"Unsupported device {requested!r}; expected cuda, cuda:N, mps, or cpu.")
     cuda_environment = (
         f"PyTorch CUDA={torch.version.cuda}, "
         f"CUDA_VISIBLE_DEVICES={os.environ.get('CUDA_VISIBLE_DEVICES', 'not set')}")
