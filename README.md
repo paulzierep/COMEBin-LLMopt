@@ -192,6 +192,11 @@ bash COMEBin/scripts/gen_cov_file.sh -a contigs.fasta -o bam_dir path_to_reads/*
 
 Any other mapper works as well, as long as there is one sorted BAM file per sample.
 
+**Precomputed coverage** (instead of BAM files): the `-p` directory may also hold one bedGraph per
+sample from `bedtools genomecov -bga -ibam sample.bam` (`*.bedgraph` or `*.bg`, optionally gzipped).
+Coverage is computed per contig fragment, so a contig-level table (for example from CoverM) cannot
+be used.
+
 ## Tests
 
 ```sh

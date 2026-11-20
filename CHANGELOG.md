@@ -3,6 +3,11 @@
 COMEBin-LLMopt versions. Each entry lists changes relative to the previous version;
 1.0.0 lists the changes relative to COMEBin v1.1.0.
 
+## Unreleased
+
+### New
+- **Precomputed coverage:** the `-p` directory may hold bedGraph files from `bedtools genomecov -bga` (`*.bedgraph`, `*.bg`, optionally gzipped) instead of, or together with, BAM files, one per sample (upstream COMEBin issue #28).
+
 ## 1.1.1 (2026-11-19)
 
 Same bins as 1.1.0 with default settings (checked on CAMI II human, seed 42). New: CheckM2 is checked before training, `-T` for temporary files, gzip-compressed assemblies, and the options `-r`, `-O`, `-C`.

@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+import gzip
 from itertools import groupby
 import multiprocessing
 import os
@@ -137,29 +138,58 @@ def _validate_ignored_group(contig_name, lines):
             f'{contig_name}: previous_end={previous_end}, row={chr(9).join(rows[index])}')
 
 
+BEDGRAPH_SUFFIXES = ('.bedgraph', '.bg', '.bedgraph.gz', '.bg.gz')
+COVERAGE_SUFFIXES = ('.bam',) + BEDGRAPH_SUFFIXES
+
+
+def is_bedgraph(path):
+    """True for a precomputed per-sample coverage file (bedtools genomecov -bga output)."""
+    return str(path).lower().endswith(BEDGRAPH_SUFFIXES)
+
+
+def find_coverage_files(directory):
+    """One coverage input per sample: BAM files and/or bedGraph files, sorted by name."""
+    return sorted(
+        path.resolve() for path in Path(directory).iterdir()
+        if path.is_file() and path.name.lower().endswith(COVERAGE_SUFFIXES))
+
+
+def _summarize_groups(lines, path, context, sample_mean, sample_var, seen):
+    for contig_name, group in groupby(lines, lambda line: line.split('\t', 1)[0]):
+        index = context.contig_index.get(contig_name)
+        if index is None:
+            _validate_ignored_group(contig_name, group)
+            continue
+        if seen[index]:
+            raise ValueError(
+                f'Coverage contains repeated groups for retained contig {contig_name} '
+                f'(a bedGraph must be grouped by contig, as bedtools genomecov writes it): {path}')
+        means, variances = _summarize_contig(
+            contig_name, group, context.starts[index], context.ends[index])
+        sample_mean[:, index] = means
+        sample_var[:, index] = variances
+        seen[index] = True
+
+
+def _stream_bedgraph_coverage(path, context, sample_mean, sample_var, seen):
+    opener = gzip.open if str(path).lower().endswith('.gz') else open
+    with opener(path, 'rt', encoding='utf-8') as handle:
+        lines = (line for line in handle
+                 if line.strip() and not line.startswith(('track', 'browser', '#')))
+        _summarize_groups(lines, path, context, sample_mean, sample_var, seen)
+
+
 def _stream_bam_coverage(bam_path, context, sample_mean, sample_var, seen):
+    if is_bedgraph(bam_path):
+        _stream_bedgraph_coverage(bam_path, context, sample_mean, sample_var, seen)
+        return
     command = ['bedtools', 'genomecov', '-bga', '-ibam', str(bam_path)]
     with tempfile.TemporaryFile(mode='w+t', encoding='utf-8') as stderr_handle:
         with subprocess.Popen(
                 command, stdout=subprocess.PIPE, stderr=stderr_handle,
                 text=True, encoding='utf-8', bufsize=1024 * 1024) as process:
             try:
-                for contig_name, lines in groupby(
-                        process.stdout, lambda line: line.split('\t', 1)[0]):
-                    index = context.contig_index.get(contig_name)
-                    if index is None:
-                        _validate_ignored_group(contig_name, lines)
-                        continue
-                    if seen[index]:
-                        raise ValueError(
-                            f'BAM coverage contains repeated groups for retained '
-                            f'contig {contig_name}: {bam_path}')
-                    means, variances = _summarize_contig(
-                        contig_name, lines, context.starts[index],
-                        context.ends[index])
-                    sample_mean[:, index] = means
-                    sample_var[:, index] = variances
-                    seen[index] = True
+                _summarize_groups(process.stdout, bam_path, context, sample_mean, sample_var, seen)
             except BaseException:
                 process.terminate()
                 process.wait()
@@ -265,10 +295,14 @@ def run_gen_coverage(logger, args):
     bam_dir = Path(args.bam_file_path).expanduser().resolve()
     if not bam_dir.is_dir():
         raise FileNotFoundError(f'BAM directory does not exist: {bam_dir}')
-    bam_files = sorted(
-        path.resolve() for path in bam_dir.glob('*.bam') if path.is_file())
+    bam_files = find_coverage_files(bam_dir)
     if not bam_files:
-        raise FileNotFoundError(f'No BAM files were found in {bam_dir}.')
+        raise FileNotFoundError(
+            f'No BAM or bedGraph files ({", ".join(COVERAGE_SUFFIXES)}) were found in {bam_dir}.')
+    n_bedgraph = sum(is_bedgraph(path) for path in bam_files)
+    if n_bedgraph:
+        logger.info('Coverage from %d precomputed bedGraph file(s) and %d BAM file(s).',
+                    n_bedgraph, len(bam_files) - n_bedgraph)
 
     coverage_manifest = out_path / 'coverage_manifest.json'
     coverage_manifest.unlink(missing_ok=True)
